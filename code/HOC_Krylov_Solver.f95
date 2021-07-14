@@ -78,9 +78,8 @@ END IF
 !CALL MATRIX_PATTERN (MD,NNZERO,AA_AUX,JA_AUX,IA_AUX,DNS)
 !END IF
 !==============================================================================
-CALL SOLVERS (BL_POINT,B_POINT,BR_POINT,L_POINT,R_POINT,TL_POINT,&
-              T_POINT,TR_POINT,MD,NNZERO,G,RHS,RHS_POINTER,AA_AUX,&
-              JA_AUX,IA_AUX,BOUNDARY_TYPE,T)
+CALL SOLVERS (BL_POINT,B_POINT,BR_POINT,L_POINT,R_POINT,TL_POINT,T_POINT,TR_POINT,&
+              MD,NNZERO,G,RHS,RHS_POINTER,AA_AUX,JA_AUX,IA_AUX,BOUNDARY_TYPE,T)
 CALL WRITE_RESULT         (XI,ETA,T,F)
 !------------------------------------------------------------------------------
 END PROGRAM MAIN
@@ -390,7 +389,7 @@ REAL(8),DIMENSION(IM,JM)     :: X,Y,T,F
 CHARACTER*7                  :: ext
 CHARACTER*12                 :: fname
 !------------------------------------------------------------------------------
-       fname='RESULTS.PLT'
+       fname='/results/RESULTS.PLT'
 !------------------------------------------------------------------------------
   OPEN(10,FILE=fname,STATUS='UNKNOWN')
   WRITE(10,*)'VARIABLES= "X","Y","T","ERROR","EXACT","FORCE"'
@@ -1167,7 +1166,7 @@ CHARACTER(*)                        :: METHOD
 CHARACTER*30                        :: FNAME
 REAL(8)                             :: ERR
 !------------------------------------------------------------------------------
-FNAME="CONV-"//METHOD//".PLT"
+FNAME="/results/CONV-"//METHOD//".PLT"
 !------------------------------------------------------------------------------
 OPEN(3,FILE=FNAME)
 WRITE(3,*) ITER,ERR
