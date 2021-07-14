@@ -434,7 +434,7 @@ REAL(8),DIMENSION(IM,JM)     :: X,Y,T,F
 CHARACTER*7                  :: ext
 CHARACTER*12                 :: fname
 !------------------------------------------------------------------------------
-       fname='RESULTS.PLT'
+       fname='/results/RESULTS.PLT'
 !------------------------------------------------------------------------------
   OPEN(10,FILE=fname,STATUS='UNKNOWN')
   WRITE(10,*)'VARIABLES= "X","Y","T","ERROR","EXACT","FORCE"'
