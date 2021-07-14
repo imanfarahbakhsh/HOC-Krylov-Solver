@@ -765,7 +765,7 @@ CHARACTER*10               :: EXT
 CHARACTER*8                :: FN1
 CHARACTER*25               :: FNAME
 !------------------------------------------------------------------------------
-FN1='COMP_MAT'
+FN1='/data/COMP_MAT'
 WRITE(EXT,'(I7)') IM
 FNAME=FN1//EXT//'.DAT'
 OPEN(IM,FILE=FNAME,STATUS="UNKNOWN")
