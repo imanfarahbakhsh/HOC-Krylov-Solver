@@ -762,8 +762,8 @@ INTEGER,DIMENSION(MD+1)    :: IA_AUX
 INTEGER,DIMENSION(NNZERO)  :: JA_AUX
 REAL(8),DIMENSION(NNZERO)  :: AA_AUX
 CHARACTER*10               :: EXT
-CHARACTER*8                :: FN1
-CHARACTER*25               :: FNAME
+CHARACTER*14                :: FN1
+CHARACTER*31               :: FNAME
 !------------------------------------------------------------------------------
 FN1='/data/COMP_MAT'
 WRITE(EXT,'(I7)') IM
