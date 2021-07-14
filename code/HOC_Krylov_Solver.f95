@@ -76,7 +76,6 @@ END IF
 !END IF
 !IF (CONSTITUTE_DENSE_MATRIX_AND_EIGEN_STRUCTURE) THEN
 !CALL MATRIX_PATTERN (MD,NNZERO,AA_AUX,JA_AUX,IA_AUX,DNS)
-!CALL EIGEN_STRUCT (DNS,MD)
 !END IF
 !==============================================================================
 CALL SOLVERS (BL_POINT,B_POINT,BR_POINT,L_POINT,R_POINT,TL_POINT,&
@@ -383,49 +382,6 @@ END SUBROUTINE COMPACT_FDM_RHS
 !******************************************************************************
 !******************************************************************************
 !******************************************************************************
-SUBROUTINE PGS_SOLVER (N,NNZERO,F,AA_AUX,JA_AUX,IA_AUX,RHS,RHS_POINTER,L_POINT,R_POINT,T_POINT,B_POINT,BOUNDARY_TYPE,T)
-USE PARAM, ONLY        :  IM,JM,TOL,BET,PI,NODE_NUM,DXI,DETA
-IMPLICIT NONE
-INTEGER                      :: INODE,ITER,N,NNZERO,I
-REAL(8)                      :: E,RES,ORF,S,NORM,PAR
-INTEGER,DIMENSION(NODE_NUM)  :: L_POINT,R_POINT,B_POINT,T_POINT
-LOGICAL,DIMENSION(NODE_NUM)  :: BOUNDARY_TYPE
-REAL(8),DIMENSION(NODE_NUM)  :: T,F
-REAL(8),DIMENSION(N)         :: AX,R,RHS,SOL
-REAL(8),DIMENSION(NNZERO)    :: AA_AUX
-INTEGER,DIMENSION(NNZERO)    :: JA_AUX
-INTEGER,DIMENSION(N+1)       :: IA_AUX
-INTEGER,DIMENSION(N)         :: RHS_POINTER
-!------------------------------------------------------------------------------
-  !PAR=((COS(PI/(IM-1))+(BET**2)*COS(PI/(JM-1)))/(1+BET**2))**2        ! !!!CAUTION, this formula (Optimum Overrelaxation Factor)
-  !ORF=(2-2*SQRT(1-PAR))/PAR                                           ! can be merely used for some special problem
-  ORF=1.0D0
-  NORM =1.D0
-  DO WHILE (NORM>TOL)
-     ITER=ITER+1
-     DO INODE=1,NODE_NUM
-     IF(.NOT.BOUNDARY_TYPE(INODE)) THEN
-            RES=((1.D0/(DXI**2 ))*(T(L_POINT(INODE))+T(R_POINT(INODE)))&
-	       +(1.D0/(DETA**2))*(T(B_POINT(INODE))+T(T_POINT(INODE)))&
-	       -0.5*F(INODE))/((2.D0/DXI**2)+(2.D0/DETA**2))
-            T(INODE)=(1-ORF)*T(INODE)+ORF*RES
-     END IF
-     END DO
-     DO I=1,N
-     SOL(I)=T(RHS_POINTER(I))
-     END DO
-     CALL CSR_MAT_V_PRODUCT     (N,NNZERO,AA_AUX,JA_AUX,IA_AUX,SOL,AX)
-     R=RHS-AX
-     NORM=SQRT(DOT_PRODUCT(R,R))/N
-     !PRINT*,ITER
-!     PRINT*,NORM
-     !CALL SUCCESSIVE_SOL (NORM,ITER)
-  END DO
-!------------------------------------------------------------------------------
-END SUBROUTINE PGS_SOLVER
-!******************************************************************************
-!******************************************************************************
-!******************************************************************************
 SUBROUTINE WRITE_RESULT (X,Y,T,F)
 USE PARAM,ONLY         :  IM,JM,NODE_NUM,PI,LY
 IMPLICIT NONE
@@ -484,36 +440,16 @@ CALL INITIAL_GUESS (MD,X0)
 !-------------------------
 CALL INITIAL_RESIDUAL (MD,NNZERO,AA_AUX,JA_AUX,IA_AUX,RHS,X0,R0)
 !==============================================================================
-! Stationary methods
-!==============================================================================
-!CALL CPU_TIME (BEGIN_TIME)
-!CALL PGS_SOLVER           (MD,NNZERO,F,AA_AUX,JA_AUX,IA_AUX,RHS,RHS_POINTER,&
-!                           L_POINT,R_POINT,T_POINT,B_POINT,BOUNDARY_TYPE,T)
-!CALL CPU_TIME (END_TIME)
-!PRINT*,'Total spent time in stationary solver is',END_TIME-BEGIN_TIME,'sec'
-!==============================================================================
-! One-dimensional projection methods
-!==============================================================================
-!CALL CPU_TIME (BEGIN_TIME)
-!CALL STEEP_DESC        (MD,NNZERO,AA_AUX,JA_AUX,IA_AUX,RHS,X0,R0,SOL)    ! not in place, iteration number is too much
-!CALL MR_ITERATION      (MD,NNZERO,AA_AUX,JA_AUX,IA_AUX,RHS,X0,R0,SOL)    ! not in place, iteration number is too much
-!CALL CPU_TIME (END_TIME)
-!PRINT*,'Total spent time in stationary solver is',END_TIME-BEGIN_TIME,'sec'
-!==============================================================================
 ! Krylov subspaces methods
 !==============================================================================
 !CALL CPU_TIME (BEGIN_TIME)
 !===========================
-CALL CG                 (MD,NNZERO,AA_AUX,JA_AUX,IA_AUX,X0,R0,SOL)
+!CALL CG                 (MD,NNZERO,AA_AUX,JA_AUX,IA_AUX,X0,R0,SOL)
 !CALL ILU0_PCG           (MD,NNZERO,AA_AUX,JA_AUX,IA_AUX,X0,R0,SOL)
 !CALL CGS                (MD,NNZERO,AA_AUX,JA_AUX,IA_AUX,X0,R0,SOL)
 !CALL ILU0_PCGS          (MD,NNZERO,AA_AUX,JA_AUX,IA_AUX,X0,R0,SOL)
-!CALL BCG_SAAD           (MD,NNZERO,AA_AUX,JA_AUX,IA_AUX,X0,R0,SOL)
-!CALL BCG_NUMREC         (MD,NNZERO,AA_AUX,JA_AUX,IA_AUX,X0,RHS,SOL)      !not in place, it's very confusing
 !CALL BCGSTAB            (MD,NNZERO,AA_AUX,JA_AUX,IA_AUX,X0,R0,SOL)
-!CALL ILU0_PBCGSTAB      (MD,NNZERO,AA_AUX,JA_AUX,IA_AUX,X0,R0,SOL)
-!CALL CR                 (MD,NNZERO,AA_AUX,JA_AUX,IA_AUX,X0,R0,SOL)
-!CALL GMRES_STAR         (MD,NNZERO,AA_AUX,JA_AUX,IA_AUX,X0,R0,SOL)
+CALL ILU0_PBCGSTAB      (MD,NNZERO,AA_AUX,JA_AUX,IA_AUX,X0,R0,SOL)
 !===========================
 !CALL CPU_TIME (END_TIME)
 !PRINT*,'Total spent time in Krylov solver is',(END_TIME-BEGIN_TIME)/1.5625D-2,'sec'
@@ -879,184 +815,6 @@ END SUBROUTINE INITIAL_RESIDUAL
 !******************************************************************************
 !******************************************************************************
 !******************************************************************************
-!                         BCG_SUBROUTINE_SAAD
-!_____________________________________________________________________________
-SUBROUTINE BCG_SAAD (MD,NNZERO,AA_AUX,JA_AUX,IA_AUX,X_OLD,R_OLD,X)
-USE PARAM, ONLY                     : TOL,SAVE_ITERATION_NORM
-IMPLICIT NONE
-INTEGER                            :: K,ITER,NN,ND,TL,MD,NNZERO
-REAL(8),DIMENSION(MD)              :: X_OLD,X,P_OLD,P,R_OLD,R&
-,AP,RS_OLD,PS_OLD,PS,RS,ATPS
-REAL(8),DIMENSION(NNZERO)          :: AA_AUX
-INTEGER,DIMENSION(NNZERO)          :: JA_AUX
-INTEGER,DIMENSION(MD+1)            :: IA_AUX
-REAL(8)                            :: NORM,S,ALPHA,BETA,M,MM,SN
-!-----------------------------------------------------------------------------
-RS_OLD  = R_OLD
-P_OLD   = R_OLD
-PS_OLD  = RS_OLD
-NORM=1.D0
-DO WHILE (NORM.GT.TOL)
-ITER=ITER+1
-!PRINT*,ITER
-SN=0.D0
-S=0.D0
-M=0.D0
-MM=0.D0
-!------------------------------------------------------------------------------
-CALL CSR_MAT_V_PRODUCT (MD,NNZERO,AA_AUX,JA_AUX,IA_AUX,P_OLD,AP)
-!------------------------------------------------------------------------------
-DO K=1,MD
-M=M+R_OLD(K)*RS_OLD(K)
-MM=MM+AP(K)*PS_OLD(K)
-END DO
-ALPHA=M/MM
-X=X_OLD+ALPHA*P_OLD
-R=R_OLD-ALPHA*AP
-!------------------------------------------------------------------------------
-CALL TRANSPOSE_MATRIX_VECTOR_PRODUCT (MD,NNZERO,AA_AUX,JA_AUX,IA_AUX,PS_OLD,ATPS)
-!------------------------------------------------------------------------------
-RS=RS_OLD-ALPHA*ATPS
-DO K=1,MD
-S=S+R(K)*RS(K)
-SN=SN+R(K)*R(K)
-END DO
-NORM=SQRT(SN)/MD
-BETA=S/M
-P=R+BETA*P_OLD
-PS=RS+BETA*PS_OLD
-PS_OLD   =PS
-P_OLD    =P
-X_OLD    =X
-R_OLD    =R
-RS_OLD   =RS
-!PRINT*,NORM
-IF (SAVE_ITERATION_NORM) CALL SUCCESSIVE_SOL (NORM,ITER)
-END DO
-!------------------------------------------------------------------------------
-END SUBROUTINE BCG_SAAD
-!******************************************************************************
-!******************************************************************************
-!******************************************************************************
-!This subroutine has been developed in FORTRAN 90 via Iman Farahbakhsh
-!on Dec 03 2009 with some adaptions from Numerical Recipes in FORTRAN 77
-!______________________________________________________________________________
-SUBROUTINE EIGEN_STRUCT (A,NP)
-IMPLICIT NONE
-INTEGER                            :: NP,I,II,J,JJ,K,KK,L,LL,NROT
-REAL(8)                            :: RATIO
-REAL(8),DIMENSION(NP)              :: R
-COMPLEX(8),DIMENSION(NP)            ::D
-REAL(8),DIMENSION(NP,NP)           :: A,V
-!------------------------------------------------------------------------------
-CALL JACOBI     (A,NP,D,V,NROT)
-!CALL WRITE_EXE  (NROT,D,V,NP,A)
-CALL WRITE_FILE (D,NP,A)
-!------------------------------------------------------------------------------
-END SUBROUTINE EIGEN_STRUCT
-!******************************************************************************
-!******************************************************************************
-!******************************************************************************
-!This subroutine has been developed in FORTRAN 90 via Iman Farahbakhsh
-!on Dec 03 2009 with some adaptions from Numerical Recipes in FORTRAN 77
-!______________________________________________________________________________
-SUBROUTINE JACOBI(A,NP,D,V,NROT)
-IMPLICIT NONE
-INTEGER                            :: NP,NROT,NMAX,I,IP,IQ,J
-REAL(8),DIMENSION(NP,NP)           :: A,V
-REAL(8),DIMENSION(NP)              :: B,Z
-COMPLEX(8),DIMENSION(NP)            ::D
-REAL(8)                            :: C,G,H,S,SM,T,TAU,THETA,TRESH
-!------------------------------------------------------------------------------
-DO IP=1,NP
-   DO IQ=1,NP
-        V(IP,IQ)=0.D0
-   END DO
-        V(IP,IP)=1.D0
-END DO
-      DO IP=1,NP
-        B(IP)=A(IP,IP)
-        D(IP)=B(IP)
-        Z(IP)=0.D0
-      END DO
-      NROT=0
-      DO I=1,50
-        SM=0.
-        DO IP=1,NP-1
-          DO IQ=IP+1,NP
-            SM=SM+ABS(A(IP,IQ))
-          END DO
-        END DO
-        IF(SM.EQ.0.D0) RETURN
-        IF(I.LT.4)THEN
-          TRESH=0.2*SM/NP**2
-        ELSE
-          TRESH=0.
-        END IF
-        DO IP=1,NP-1
-          DO IQ=IP+1,NP
-            G=100.*ABS(A(IP,IQ))
-            IF((I.GT.4).AND.(ABS(D(IP))+&
-              G.EQ.ABS(D(IP))).AND.(ABS(D(IQ))+G.EQ.ABS(D(IQ))))THEN
-              A(IP,IQ)=0.
-            ELSE IF(ABS(A(IP,IQ)).GT.TRESH)THEN
-              H=D(IQ)-D(IP)
-              IF(ABS(H)+G.EQ.ABS(H))THEN
-                T=A(IP,IQ)/H
-              ELSE
-                THETA=0.5*H/A(IP,IQ)
-                T=1.D0/(ABS(THETA)+sqrt(1.+THETA**2))
-                IF(THETA.LT.0.)T=-T
-              END IF
-              C=1./SQRT(1+T**2)
-              S=T*C
-              TAU=S/(1.D0+C)
-              H=T*A(IP,IQ)
-              Z(IP)=Z(IP)-H
-              Z(IQ)=Z(IQ)+H
-              D(IP)=D(IP)-H
-              D(IQ)=D(IQ)+H
-              A(IP,IQ)=0.
-              DO J=1,IP-1
-                G=A(J,IP)
-                H=A(J,IQ)
-                A(J,IP)=G-S*(H+G*TAU)
-                A(J,IQ)=H+S*(G-H*TAU)
-              END DO
-              DO J=IP+1,IQ-1
-                G=A(IP,J)
-                H=A(J,IQ)
-                A(IP,J)=G-S*(H+G*TAU)
-                A(J,IQ)=H+S*(G-H*TAU)
-              END DO
-              DO J=IQ+1,NP
-                G=A(IP,J)
-                H=A(IQ,J)
-                A(IP,J)=G-S*(H+G*TAU)
-                A(IQ,J)=H+S*(G-H*TAU)
-              END DO
-              DO J=1,NP
-                G=V(J,IP)
-                H=V(J,IQ)
-                V(J,IP)=G-S*(H+G*TAU)
-                V(J,IQ)=H+S*(G-H*TAU)
-              END DO
-              NROT=NROT+1
-            END IF
-          END DO
-        END DO
-        DO IP=1,NP
-          B(IP)=B(IP)+Z(IP)
-          D(IP)=B(IP)
-          Z(IP)=0.
-        END DO
-      END DO
-      PAUSE 'too many iterations in jacobi'
-!------------------------------------------------------------------------------
-END SUBROUTINE JACOBI
-!******************************************************************************
-!******************************************************************************
-!******************************************************************************
 !This subroutine has been developed in FORTRAN 90 via Iman Farahbakhsh
 !on Dec 03 2009 with some adaptions from Numerical Recipes in FORTRAN 77
 !______________________________________________________________________________
@@ -1176,159 +934,6 @@ END SUBROUTINE
 !******************************************************************************
 !******************************************************************************
 !******************************************************************************
-!                           BCG_SUBROUTINE_NUMREC
-!______________________________________________________________________________
-SUBROUTINE BCG_NUMREC (MD,NNZERO,AA_AUX,JA_AUX,IA_AUX,X0,RHS,X)
-USE PARAM, ONLY                     : ITOL,ITMAX,TOL
-IMPLICIT NONE
-INTEGER                            :: MD,NNZERO,I,ITER,TL
-INTEGER,DIMENSION(MD+1)            :: IA_AUX
-INTEGER,DIMENSION(NNZERO)          :: JA_AUX
-REAL(8),DIMENSION(NNZERO)          :: AA_AUX
-REAL(8),DIMENSION(MD)              :: B,X,BCMP,X0,RHS
-REAL(8),ALLOCATABLE                :: SA(:)
-INTEGER,ALLOCATABLE                :: IJA(:)
-REAL(8)                            :: ERR
-!------------------------------------------------------------------------------
-CALL TOTAL_LENGTH          (MD,IA_AUX,TL)
-ALLOCATE                   (SA(TL),IJA(TL))
-CALL CSRMSR                (TL,MD,NNZERO,AA_AUX,JA_AUX,IA_AUX,SA,IJA)
-CALL TOTAL_LENGTH          (MD,IA_AUX,TL)
-!------------------------------------------------------------------------------
-        X=X0
-        B=RHS
-      CALL LINBCG (TL,NNZERO,MD,AA_AUX,JA_AUX,IA_AUX,SA,IJA,B,X,ITOL,TOL,ITMAX,ITER,ERR)
-      !WRITE(*,'(/1X,A,E15.6)') 'Estimated error:',ERR
-      WRITE(*,'(/1X,A,I6)') 'Iterations needed:',ITER
-      !WRITE(*,'(/1X,A)') 'Solution vector:'
-      !WRITE(*,'(1X,5F12.6)') (X(I),I=1,MD)
-      !CALL SPRSAX (TL,MD,SA,IJA,X,BCMP)
-      WRITE(*,'(/1X,A)') 'press RETURN to continue...'
-      READ(*,*)
-      !WRITE(*,'(1X,A/T8,A,T22,A)') 'Test of solution vector:','A*X','B'
-      !DO I=1,MD
-        !WRITE (*,'(1X,2F12.6)') BCMP(I),B(I)
-      !END DO
-!------------------------------------------------------------------------------
-END SUBROUTINE BCG_NUMREC
-!******************************************************************************
-!******************************************************************************
-!******************************************************************************
-!                         LINBCG
-!______________________________________________________________________________
-SUBROUTINE LINBCG (TL,NNZERO,MD,AA_AUX,JA_AUX,IA_AUX,SA,IJA,B,X,ITOL,TOL,ITMAX,ITER,ERR)
-USE PARAM, ONLY            :  EPS
-IMPLICIT NONE
-INTEGER                   :: ITER,ITMAX,ITOL,J,TL,NNZERO,MD,ICODE
-INTEGER,DIMENSION(TL)     :: IJA,JLU
-INTEGER,DIMENSION(MD)     :: UPTR,IW
-REAL(8),DIMENSION(MD)     :: B,X,P,PP,R,RR,Z,ZZ
-REAL(8),DIMENSION(NNZERO) :: AA_AUX,LUVAL
-INTEGER,DIMENSION(NNZERO) :: JA_AUX
-INTEGER,DIMENSION(MD+1)   :: IA_AUX
-REAL(8),DIMENSION(TL)     :: SA,ALU
-REAL(8)                   :: ERR,TOL,AK,AKDEN,BK,BKDEN,BKNUM,BNRM,DXNRM,XNRM,ZM1NRM,ZNRM,SNRM
-!------------------------------------------------------------------------------
-ITER=0
-CALL ATIMES (TL,MD,SA,IJA,X,R,0)
-     DO J=1,MD
-        R(J)=B(J)-R(J)
-        RR(J)=R(J)
-      END DO
-!    CALL atimes(N,r,rr,0)
-      IF(ITOL.EQ.1) THEN
-        BNRM=SNRM(MD,B,ITOL)
-!------------------------------------------------------------------------------
-        CALL ASOLVE(TL,MD,SA,R,Z,0)
-!------------------------------------------------------------------------------
-      ELSE IF (ITOL.EQ.2) THEN
-!------------------------------------------------------------------------------
-        CALL ASOLVE (TL,MD,SA,B,Z,0)
-!------------------------------------------------------------------------------
-        BNRM=SNRM (MD,Z,ITOL)
-!------------------------------------------------------------------------------
-        CALL ASOLVE(TL,MD,SA,R,Z,0)
-!------------------------------------------------------------------------------
-      ELSE IF (ITOL.EQ.3.OR.ITOL.EQ.4) THEN
-!------------------------------------------------------------------------------
-        CALL ASOLVE(TL,MD,SA,B,Z,0)
-!------------------------------------------------------------------------------
-        BNRM=SNRM(MD,Z,ITOL)
-!------------------------------------------------------------------------------
-        CALL ASOLVE(TL,MD,SA,R,Z,0)
-!------------------------------------------------------------------------------
-        ZNRM=SNRM(MD,Z,ITOL)
-      ELSE
-        PAUSE 'illegal ITOL in linbcg'
-      END IF
-100   IF (ITER.LE.ITMAX) THEN
-         ITER=ITER+1
-!------------------------------------------------------------------------------
-         CALL ASOLVE(TL,MD,SA,RR,ZZ,1)
-!------------------------------------------------------------------------------
-                 BKNUM=0.D0
-              DO J=1,MD
-                 BKNUM=BKNUM+Z(J)*RR(J)
-              END DO
-              IF(ITER.EQ.1) THEN
-                DO J=1,MD
-                   P(J)=Z(J)
-                   PP(J)=ZZ(J)
-                END DO
-              ELSE
-                BK=BKNUM/BKDEN
-                DO J=1,MD
-                   P(J)=BK*P(J)+Z(J)
-                   PP(J)=BK*PP(J)+ZZ(J)
-                END DO
-              END IF
-          BKDEN=BKNUM
-          CALL ATIMES (TL,MD,SA,IJA,P,Z,0)
-               AKDEN=0.D0
-               DO J=1,MD
-                  AKDEN=AKDEN+Z(J)*PP(J)
-               END DO
-                  AK=BKNUM/AKDEN
-          CALL ATIMES (TL,MD,SA,IJA,PP,ZZ,1)
-               DO J=1,MD
-                  X(J)=X(J)+AK*P(J)
-                  R(J)=R(J)-AK*Z(J)
-                  RR(J)=RR(J)-AK*ZZ(J)
-               END DO
-!------------------------------------------------------------------------------
-          CALL ASOLVE(TL,MD,SA,R,Z,0)
-!------------------------------------------------------------------------------
-               IF(ITOL.EQ.1)THEN
-                 ERR=SNRM(MD,R,ITOL)/BNRM
-               ELSE IF(ITOL.EQ.2)THEN
-                      ERR=SNRM(MD,Z,ITOL)/BNRM
-               ELSE IF(ITOL.EQ.3.OR.ITOL.EQ.4)THEN
-                      ZM1NRM=ZNRM
-                      ZNRM  =SNRM(MD,Z,ITOL)
-               IF(ABS(ZM1NRM-ZNRM).GT.EPS*ZNRM) THEN
-                     DXNRM=ABS(AK)*SNRM(MD,P,ITOL)
-                     ERR=ZNRM/ABS(ZM1NRM-ZNRM)*DXNRM
-               ELSE
-                     ERR=ZNRM/BNRM
-                     GOTO 100
-               END IF
-               XNRM=SNRM(MD,X,ITOL)
-            IF(ERR.LE.0.5D0*XNRM) THEN
-              ERR=ERR/XNRM
-            ELSE
-              ERR=ZNRM/BNRM
-              GOTO 100
-            END IF
-       END IF
-       !WRITE (*,*) ' iter=',ITER,' err=',ERR
-       !CALL SUCCESSIVE_SOL (ERR,ITER)
-       IF(ERR.GT.TOL) GOTO 100
-       END IF
-!------------------------------------------------------------------------------
-END SUBROUTINE LINBCG
-!******************************************************************************
-!******************************************************************************
-!******************************************************************************
 !                         ASOLVE
 !______________________________________________________________________________
 SUBROUTINE ASOLVE (TL,MD,SA,B,X,ITRNSP)
@@ -1399,13 +1004,16 @@ REAL(8),DIMENSION(MD)         :: B,X
 REAL(8),DIMENSION(TL)         :: SA
 INTEGER,DIMENSION(TL)         :: IJA
 !------------------------------------------------------------------------------
-IF (IJA(1).NE.MD+2) PAUSE 'mismatched vector and matrix in sprsax'
+IF (IJA(1).NE.MD+2) THEN
+PRINT*, 'mismatched vector and matrix in sprsax'
+ELSE
 DO I=1,MD
    B(I)=SA(I)*X(I)
    DO K=IJA(I),IJA(I+1)-1
       B(I)=B(I)+SA(K)*X(IJA(K))
    END DO
 END DO
+END IF
 !------------------------------------------------------------------------------
 END SUBROUTINE SPRSAX
 !******************************************************************************
@@ -1420,7 +1028,9 @@ REAL(8),DIMENSION(MD)       :: B,X
 INTEGER,DIMENSION(TL)       :: IJA
 REAL(8),DIMENSION(TL)       :: SA
 !------------------------------------------------------------------------------
-IF (IJA(1).NE.MD+2) PAUSE 'mismatched vector and matrix in sprstx'
+IF (IJA(1).NE.MD+2) THEN
+PRINT*, 'mismatched vector and matrix in sprstx'
+ELSE
    DO I=1,MD
       B(I)=SA(I)*X(I)
    END DO
@@ -1430,6 +1040,7 @@ IF (IJA(1).NE.MD+2) PAUSE 'mismatched vector and matrix in sprstx'
          B(J)=B(J)+SA(K)*X(I)
       END DO
    END DO
+END IF
 !------------------------------------------------------------------------------
 END SUBROUTINE SPRSTX
 !******************************************************************************
@@ -1547,31 +1158,20 @@ END SUBROUTINE CSRMSR
 !******************************************************************************
 !                     SUCCESSIVE_SOLUTION SUBROUTINE
 !______________________________________________________________________________
-SUBROUTINE SUCCESSIVE_SOL (ERR,ITER)
+!                     SUCCESSIVE_SOLUTION SUBROUTINE
+!______________________________________________________________________________
+SUBROUTINE SUCCESSIVE_SOL (METHOD,ERR,ITER)
 IMPLICIT NONE
-INTEGER                             :: ITER,COUNTER
-CHARACTER*10                        :: EXT
-CHARACTER*4                         :: FN1
-CHARACTER*25                        :: FNAME
+INTEGER                             :: ITER
+CHARACTER(*)                        :: METHOD
+CHARACTER*30                        :: FNAME
 REAL(8)                             :: ERR
 !------------------------------------------------------------------------------
-FN1='VECT'
-COUNTER=0
+FNAME="CONV-"//METHOD//".PLT"
 !------------------------------------------------------------------------------
-COUNTER=COUNTER+10
-WRITE(EXT,'(I7)') ITER
-FNAME=FN1//EXT//'.DAT'
-!------------------------------------------------------------------------------
-OPEN(COUNTER,FILE=FNAME,POSITION='REWIND')
-!WRITE(COUNTER,*)'VARIABLES= "ITER","ERR"'
-!WRITE(COUNTER,*)'ZONE,F=POINT'
-WRITE(COUNTER,*) ITER,ERR
-CLOSE(COUNTER)
-!------------------------------------------------------------------------------
-!WRITE(*,*) '========================'
-!WRITE(*,*) 'PRINTING ON ',FNAME
-!WRITE(*,*) '========================'
-!------------------------------------------------------------------------------
+OPEN(3,FILE=FNAME)
+WRITE(3,*) ITER,ERR
+!-----------------------------------------------------------------------------
 END SUBROUTINE SUCCESSIVE_SOL
 !******************************************************************************
 !******************************************************************************
@@ -1603,6 +1203,7 @@ CALL CSRDIA                (MD,NNZERO,IDIAG,10,AA_AUX,JA_AUX,IA_AUX,MD,DIAG,IOFF
 !------------------------------------------------------------------------------
 P_OLD=R_OLD
 NORM=1.D0
+ITER=0
 CALL CPU_TIME (TIME_BEGIN)
 DO WHILE (NORM.GT.TOL)
 ITER=ITER+1
@@ -1650,7 +1251,7 @@ R_OLD=R
 !PRINT*,NORM
 !CALL CPU_TIME (TIME_END)
 !CALL CPU_TIME_WRITE (TIME_BEGIN,TIME_END,ITER)
-!IF (SAVE_ITERATION_NORM) CALL SUCCESSIVE_SOL (NORM,ITER)
+IF (SAVE_ITERATION_NORM) CALL SUCCESSIVE_SOL ("CG",NORM,ITER)
 END DO
 CALL CPU_TIME (TIME_END)
 !PRINT*, (TIME_END-TIME_BEGIN)/1.5625D-2
@@ -1932,6 +1533,7 @@ CALL LUSOL  (N,NNZERO,R_OLD,Z_OLD,LUVAL,JA_AUX,IA_AUX,UPTR)
 !------------------------------------------------------------------------------
 P_OLD=Z_OLD
 NORM=1.D0
+ITER=0
 !CALL CPU_TIME (TIME_BEGIN)
 DO WHILE (NORM.GT.TOL)
 ITER=ITER+1
@@ -1987,7 +1589,7 @@ Z_OLD=Z
 !PRINT*,NORM
 !CALL CPU_TIME (TIME_END)
 !CALL CPU_TIME_WRITE (TIME_BEGIN,TIME_END,ITER)
-IF (SAVE_ITERATION_NORM) CALL SUCCESSIVE_SOL (NORM,ITER)
+IF (SAVE_ITERATION_NORM) CALL SUCCESSIVE_SOL ("ILU0_PCG",NORM,ITER)
 END DO
 !------------------------------------------------------------------------------
 END SUBROUTINE ILU0_PCG
@@ -2446,6 +2048,7 @@ RS=R_OLD
 P_OLD=R_OLD
 U_OLD=R_OLD
 NORM=1.D0
+ITER=0
 !CALL CPU_TIME (TIME_BEGIN)
 DO WHILE (NORM.GT.TOL)
 ITER=ITER+1
@@ -2521,7 +2124,7 @@ U_OLD=U
 !PRINT*,NORM
 !CALL CPU_TIME (TIME_END)
 !CALL CPU_TIME_WRITE (TIME_BEGIN,TIME_END,ITER)
-IF (SAVE_ITERATION_NORM) CALL SUCCESSIVE_SOL (NORM,ITER)
+IF (SAVE_ITERATION_NORM) CALL SUCCESSIVE_SOL ("CGS",NORM,ITER)
 END DO
 !------------------------------------------------------------------------------
 END SUBROUTINE CGS
@@ -2561,6 +2164,7 @@ CALL CSRDIA                (N,NNZERO,IDIAG,10,AA_AUX,JA_AUX,IA_AUX,N,DIAG,IOFF,A
 RS=R_OLD
 P_OLD=R_OLD
 NORM=1.D0
+ITER=0
 !CALL CPU_TIME (TIME_BEGIN)
 DO WHILE (NORM.GT.TOL)
 ITER=ITER+1
@@ -2641,7 +2245,7 @@ R_OLD=R
 !PRINT*,NORM
 !CALL CPU_TIME (TIME_END)
 !CALL CPU_TIME_WRITE (TIME_BEGIN,TIME_END,ITER)
-IF (SAVE_ITERATION_NORM) CALL SUCCESSIVE_SOL (NORM,ITER)
+IF (SAVE_ITERATION_NORM) CALL SUCCESSIVE_SOL ("BCGSTAB",NORM,ITER)
 END DO
 !------------------------------------------------------------------------------
 END SUBROUTINE BCGSTAB
@@ -2713,6 +2317,7 @@ END SUBROUTINE BCGSTAB
  !END DO
  RS=R_OLD
  NORM=1.D0
+ ITER=0
  !CALL CPU_TIME (TIME_BEGIN)
  DO WHILE (NORM.GT.TOL)
  ITER=ITER+1
@@ -2781,7 +2386,7 @@ CALL CSR_MAT_V_PRODUCT     (N,NNZERO,AA_AUX,JA_AUX,IA_AUX,SRHAT,T)
  ALPHA_OLD=ALPHA
  !CALL CPU_TIME (TIME_END)
  !CALL CPU_TIME_WRITE (TIME_BEGIN,TIME_END,ITER)
- IF (SAVE_ITERATION_NORM) CALL SUCCESSIVE_SOL (NORM,ITER)
+ IF (SAVE_ITERATION_NORM) CALL SUCCESSIVE_SOL ("ILU0_PBCGSTAB",NORM,ITER)
  END DO
 !------------------------------------------------------------------------------
  END SUBROUTINE ILU0_PBCGSTAB
@@ -2853,8 +2458,9 @@ CALL CSR_MAT_V_PRODUCT     (N,NNZERO,AA_AUX,JA_AUX,IA_AUX,SRHAT,T)
 ! END DO
  RS=R_OLD
  NORM=1.D0
+ ITER=0
  !CALL CPU_TIME (TIME_BEGIN)
- DO WHILE (NORM.GT.TOL)
+DO WHILE (NORM.GT.TOL)
  ITER=ITER+1
  !PRINT*,ITER
  RHO=DOT_PRODUCT(RS,R_OLD)
@@ -2919,1044 +2525,13 @@ RHO_OLD=RHO
 !PRINT*,NORM
 !CALL CPU_TIME (TIME_END)
 !CALL CPU_TIME_WRITE (TIME_BEGIN,TIME_END,ITER)
-IF (SAVE_ITERATION_NORM) CALL SUCCESSIVE_SOL (NORM,ITER)
-!CALL SUCCESSIVE_SOL_CPUT (NORM,ITER,TIME_END-TIME_BEGIN)
+IF (SAVE_ITERATION_NORM) CALL SUCCESSIVE_SOL ("ILU0_PCGS",NORM,ITER)
 END DO
 !------------------------------------------------------------------------------
 END SUBROUTINE ILU0_PCGS
 !******************************************************************************
 !******************************************************************************
-!                         SUCCESSIVE_SOL_CPUT SUBROUTINE
-!******************************************************************************
-!******************************************************************************
-!
-!______________________________________________________________________________
-SUBROUTINE SUCCESSIVE_SOL_CPUT (ERR,ITER,CPUT)
-IMPLICIT NONE
-INTEGER                             :: ITER,COUNTER
-CHARACTER*10                        :: EXT
-CHARACTER*9                         :: FN1
-CHARACTER*30                        :: FNAME
-REAL(8)                             :: ERR,CPUT
-!------------------------------------------------------------------------------
-FN1='VECT_CPUT'
-COUNTER=0
-!------------------------------------------------------------------------------
-COUNTER=COUNTER+10
-WRITE(EXT,'(I7)') ITER
-FNAME=FN1//EXT//'.DAT'
-!------------------------------------------------------------------------------
-OPEN(COUNTER,FILE=FNAME,POSITION='REWIND')
-!WRITE(COUNTER,*)'VARIABLES= "ITER","ERR","CPUT"'
-!WRITE(COUNTER,*)'ZONE,F=POINT'
-WRITE(COUNTER,*) ITER,ERR,CPUT
-CLOSE(COUNTER)
-!------------------------------------------------------------------------------
-!WRITE(*,*) '========================'
-!WRITE(*,*) 'PRINTING ON ',FNAME
-!WRITE(*,*) '========================'
-!------------------------------------------------------------------------------
-END SUBROUTINE SUCCESSIVE_SOL_CPUT
-!******************************************************************************
-!******************************************************************************
-!                         STEEP_DESC_SUBROUTINE
-!******************************************************************************
-!******************************************************************************
-SUBROUTINE STEEP_DESC (N,NNZERO,AA_AUX,JA_AUX,IA_AUX,B,X0,RSDL,X)
-USE PARAM, ONLY             :  TOL
-IMPLICIT NONE
-INTEGER                     :: I,ITER,K,NNZERO,N,TL,IDIAG,IERR
-REAL(8),DIMENSION(NNZERO)   :: AA_AUX,AAR
-INTEGER,DIMENSION(NNZERO)   :: JA_AUX,JAR
-INTEGER,DIMENSION(N+1)      :: IA_AUX,IAR
-INTEGER,DIMENSION(2*N-1)    :: IND
-REAL(8),DIMENSION(N)        :: X,RSDL,AR,AX,X0,B
-REAL(8)                     :: LAMBDA,NORM,S,ARR,TIME_BEGIN,TIME_END
-REAL(8),ALLOCATABLE         :: SA(:),COEF(:,:),DIAG(:,:)
-INTEGER,ALLOCATABLE         :: IJA(:),JCOEF(:,:),IOFF(:)
-!------------------------------------------------------------------------------
-CALL TOTAL_LENGTH          (N,IA_AUX,TL)
-ALLOCATE                   (SA(TL),IJA(TL))
-CALL CSRMSR                (TL,N,NNZERO,AA_AUX,JA_AUX,IA_AUX,SA,IJA)
-CALL TOTAL_LENGTH          (N,IA_AUX,TL)
-CALL INFDIA                (N,NNZERO,JA_AUX,IA_AUX,IND,IDIAG)
-ALLOCATE                   (COEF(N,IDIAG),JCOEF(N,IDIAG))
-ALLOCATE                   (IOFF(IDIAG),DIAG(N,IDIAG))
-CALL CSRELL                (N,NNZERO,AA_AUX,JA_AUX,IA_AUX,N,COEF,JCOEF,N,IDIAG,IERR)
-CALL CSRDIA                (N,NNZERO,IDIAG,10,AA_AUX,JA_AUX,IA_AUX,N,DIAG,IOFF,AAR,JAR,IAR,IND)
-!------------------------------------------------------------------------------
-X=X0
-NORM=1.D0
-!CALL CPU_TIME (TIME_BEGIN)
-DO WHILE (NORM.GT.TOL)
-ITER=ITER+1
-!------------------------------------------------------------------------------
-! 1- Matrix by vector multiplication when matrix in CSR format
-!------------------------------------------------------------------------------
-! CALL CSR_MAT_V_PRODUCT     (N,NNZERO,AA_AUX,JA_AUX,IA_AUX,RSDL,AR)
-!------------------------------------------------------------------------------
-! 2- Matrix by vector multiplication when matrix in MSR format
-!------------------------------------------------------------------------------
- CALL SPRSAX (TL,N,SA,IJA,RSDL,AR)
-!------------------------------------------------------------------------------
-! 3- Matrix by vector multiplication when matrix in Ellpack-Itpack format
-!------------------------------------------------------------------------------
-! CALL AMUXE (N,RSDL,AR,N,IDIAG,COEF,JCOEF)
-!------------------------------------------------------------------------------
-! 4- Matrix by vector multiplication when matrix in Diagonal format
-!------------------------------------------------------------------------------
-! CALL AMUXD (N,RSDL,AR,DIAG,N,IDIAG,IOFF)
-!------------------------------------------------------------------------------
-ARR=DOT_PRODUCT(AR,RSDL)
-S=DOT_PRODUCT(RSDL,RSDL)
-NORM=SQRT(S)/N
-LAMBDA=S/ARR
-X=X+LAMBDA*RSDL
-!------------------------------------------------------------------------------
-! 1- Matrix by vector multiplication when matrix in CSR format
-!------------------------------------------------------------------------------
-! CALL CSR_MAT_V_PRODUCT     (N,NNZERO,AA_AUX,JA_AUX,IA_AUX,X,AX)
-!------------------------------------------------------------------------------
-! 2- Matrix by vector multiplication when matrix in MSR format
-!------------------------------------------------------------------------------
- CALL SPRSAX (TL,N,SA,IJA,X,AX)
-!------------------------------------------------------------------------------
-! 3- Matrix by vector multiplication when matrix in Ellpack-Itpack format
-!------------------------------------------------------------------------------
-! CALL AMUXE (N,X,AX,N,IDIAG,COEF,JCOEF)
-!------------------------------------------------------------------------------
-! 4- Matrix by vector multiplication when matrix in Diagonal format
-!------------------------------------------------------------------------------
-! CALL AMUXD (N,X,AX,DIAG,N,IDIAG,IOFF)
-!------------------------------------------------------------------------------
-RSDL=B-AX
-!PRINT*,NORM
-!CALL CPU_TIME (TIME_END)
-!CALL CPU_TIME_WRITE (TIME_BEGIN,TIME_END,ITER)
-!CALL SUCCESSIVE_SOL (NORM,ITER)
-END DO
-!------------------------------------------------------------------------------
-END SUBROUTINE STEEP_DESC
-!******************************************************************************
-!******************************************************************************
-!                        MR_ITERATION_SUBROUTINE
-!******************************************************************************
-!******************************************************************************
-SUBROUTINE MR_ITERATION (N,NNZERO,AA_AUX,JA_AUX,IA_AUX,B,X0,RSDL,X)
-USE PARAM, ONLY             :  TOL
-IMPLICIT NONE
-INTEGER                     :: I,ITER,K,NNZERO,N,TL,IDIAG,IERR
-REAL(8),DIMENSION(NNZERO)   :: AA_AUX,AAR
-INTEGER,DIMENSION(NNZERO)   :: JA_AUX,JAR
-INTEGER,DIMENSION(N+1)      :: IA_AUX,IAR
-INTEGER,DIMENSION(2*N-1)    :: IND
-REAL(8),DIMENSION(N)        :: X,RSDL,AR,AX,X0,B
-REAL(8)                     :: LAMBDA,NORM,S,ARR,TIME_BEGIN,TIME_END,AARR
-REAL(8),ALLOCATABLE         :: SA(:),COEF(:,:),DIAG(:,:)
-INTEGER,ALLOCATABLE         :: IJA(:),JCOEF(:,:),IOFF(:)
-!------------------------------------------------------------------------------
-CALL TOTAL_LENGTH          (N,IA_AUX,TL)
-ALLOCATE                   (SA(TL),IJA(TL))
-CALL CSRMSR                (TL,N,NNZERO,AA_AUX,JA_AUX,IA_AUX,SA,IJA)
-CALL TOTAL_LENGTH          (N,IA_AUX,TL)
-CALL INFDIA                (N,NNZERO,JA_AUX,IA_AUX,IND,IDIAG)
-ALLOCATE                   (COEF(N,IDIAG),JCOEF(N,IDIAG))
-ALLOCATE                   (IOFF(IDIAG),DIAG(N,IDIAG))
-CALL CSRELL                (N,NNZERO,AA_AUX,JA_AUX,IA_AUX,N,COEF,JCOEF,N,IDIAG,IERR)
-CALL CSRDIA                (N,NNZERO,IDIAG,10,AA_AUX,JA_AUX,IA_AUX,N,DIAG,IOFF,AAR,JAR,IAR,IND)
-!------------------------------------------------------------------------------
-X=X0
-NORM=1.D0
-!CALL CPU_TIME (TIME_BEGIN)
-DO WHILE (NORM.GT.TOL)
-ITER=ITER+1
-!------------------------------------------------------------------------------
-! 1- Matrix by vector multiplication when matrix in CSR format
-!------------------------------------------------------------------------------
-! CALL CSR_MAT_V_PRODUCT     (N,NNZERO,AA_AUX,JA_AUX,IA_AUX,RSDL,AR)
-!------------------------------------------------------------------------------
-! 2- Matrix by vector multiplication when matrix in MSR format
-!------------------------------------------------------------------------------
- CALL SPRSAX (TL,N,SA,IJA,RSDL,AR)
-!------------------------------------------------------------------------------
-! 3- Matrix by vector multiplication when matrix in Ellpack-Itpack format
-!------------------------------------------------------------------------------
-! CALL AMUXE (N,RSDL,AR,N,IDIAG,COEF,JCOEF)
-!------------------------------------------------------------------------------
-! 4- Matrix by vector multiplication when matrix in Diagonal format
-!------------------------------------------------------------------------------
-! CALL AMUXD (N,RSDL,AR,DIAG,N,IDIAG,IOFF)
-!------------------------------------------------------------------------------
-ARR=DOT_PRODUCT(AR,RSDL)
-AARR=DOT_PRODUCT(AR,AR)
-LAMBDA=ARR/AARR
-S=DOT_PRODUCT(RSDL,RSDL)
-NORM=SQRT(S)/N
-X=X+LAMBDA*RSDL
-!------------------------------------------------------------------------------
-! 1- Matrix by vector multiplication when matrix in CSR format
-!------------------------------------------------------------------------------
-! CALL CSR_MAT_V_PRODUCT     (N,NNZERO,AA_AUX,JA_AUX,IA_AUX,X,AX)
-!------------------------------------------------------------------------------
-! 2- Matrix by vector multiplication when matrix in MSR format
-!------------------------------------------------------------------------------
- CALL SPRSAX (TL,N,SA,IJA,X,AX)
-!------------------------------------------------------------------------------
-! 3- Matrix by vector multiplication when matrix in Ellpack-Itpack format
-!------------------------------------------------------------------------------
-! CALL AMUXE (N,X,AX,N,IDIAG,COEF,JCOEF)
-!------------------------------------------------------------------------------
-! 4- Matrix by vector multiplication when matrix in Diagonal format
-!------------------------------------------------------------------------------
-! CALL AMUXD (N,X,AX,DIAG,N,IDIAG,IOFF)
-!------------------------------------------------------------------------------
-RSDL=B-AX
-!PRINT*,NORM
-!CALL CPU_TIME (TIME_END)
-!CALL CPU_TIME_WRITE (TIME_BEGIN,TIME_END,ITER)
-!CALL SUCCESSIVE_SOL (NORM,ITER)
-END DO
-!------------------------------------------------------------------------------
-END SUBROUTINE MR_ITERATION
-!******************************************************************************
-!******************************************************************************
-!******************************************************************************
-!                           CG_INNER_SUBROUTINE
-!______________________________________________________________________________
-SUBROUTINE CG_INNER (MD,NNZERO,INNER_ITER,AA_AUX,JA_AUX,IA_AUX,X_OLD,B,X)
-USE PARAM, ONLY                     : TOL
-IMPLICIT NONE
-INTEGER                            :: K,TL,MD,NNZERO,IDIAG,IERR,I,INNER_ITER
-REAL(8),DIMENSION(MD)              :: X_OLD,X,P_OLD,P,R_OLD,R,AP,B
-INTEGER,DIMENSION(MD+1)            :: IA_AUX,IAR
-INTEGER,DIMENSION(2*MD-1)          :: IND
-REAL(8)                            :: NORM,S,ALPHA,BETA,M,MM,TIME_BEGIN,TIME_END
-REAL(8),DIMENSION(NNZERO)          :: AA_AUX,AAR
-INTEGER,DIMENSION(NNZERO)          :: JA_AUX,JAR
-REAL(8),ALLOCATABLE                :: SA(:),DIAG(:,:),COEF(:,:)
-INTEGER,ALLOCATABLE                :: IJA(:),IOFF(:),JCOEF(:,:)
-!------------------------------------------------------------------------------
-CALL TOTAL_LENGTH          (MD,IA_AUX,TL)
-ALLOCATE                   (SA(TL),IJA(TL))
-CALL CSRMSR                (TL,MD,NNZERO,AA_AUX,JA_AUX,IA_AUX,SA,IJA)
-CALL TOTAL_LENGTH          (MD,IA_AUX,TL)
-CALL INFDIA                (MD,NNZERO,JA_AUX,IA_AUX,IND,IDIAG)
-ALLOCATE                   (COEF(MD,IDIAG),JCOEF(MD,IDIAG))
-ALLOCATE                   (IOFF(IDIAG),DIAG(MD,IDIAG))
-CALL CSRELL                (MD,NNZERO,AA_AUX,JA_AUX,IA_AUX,MD,COEF,JCOEF,MD,IDIAG,IERR)
-CALL CSRDIA                (MD,NNZERO,IDIAG,10,AA_AUX,JA_AUX,IA_AUX,MD,DIAG,IOFF,AAR,JAR,IAR,IND)
-!------------------------------------------------------------------------------
-CALL INITIAL_RESIDUAL (MD,NNZERO,AA_AUX,JA_AUX,IA_AUX,B,X_OLD,R_OLD)
-!------------------------------------------------------------------------------
-P_OLD=R_OLD
-DO I=1,INNER_ITER
-S=0.D0
-M=0.D0
-MM=0.D0
-!------------------------------------------------------------------------------
-! Stores the matrix in compressed spars row and multiplies by
-! vector
-!------------------------------------------------------------------------------
-!CALL CSR_MAT_V_PRODUCT     (MD,NNZERO,AA_AUX,JA_AUX,IA_AUX,P_OLD,AP)
-!------------------------------------------------------------------------------
-! Stores the matrix in modified spars row and multiplies by
-! vector
-!------------------------------------------------------------------------------
-CALL SPRSAX (TL,MD,SA,IJA,P_OLD,AP)
-!------------------------------------------------------------------------------
-! Stores the matrix in Ellpack/Itpack format and multiplies by
-! vector
-!------------------------------------------------------------------------------
-!CALL AMUXE (MD,P_OLD,AP,MD,IDIAG,COEF,JCOEF)
-!------------------------------------------------------------------------------
-! Stores the matrix in Diagonal format and multiplies by
-! vector
-!------------------------------------------------------------------------------
-!CALL AMUXD (MD,P_OLD,AP,DIAG,MD,IDIAG,IOFF)
-!------------------------------------------------------------------------------
-DO K=1,MD
-M=M+R_OLD(K)**2
-MM=MM+AP(K)*P_OLD(K)
-END DO
-ALPHA=M/MM
-X=X_OLD+ALPHA*P_OLD
-R=R_OLD-ALPHA*AP
-DO K=1,MD
-S=S+R(K)**2
-END DO
-BETA=S/M
-P=R+BETA*P_OLD
-P_OLD=P
-X_OLD=X
-R_OLD=R
-END DO
-!------------------------------------------------------------------------------
-END SUBROUTINE CG_INNER
-!******************************************************************************
-!******************************************************************************
-!                         ILU0_PCG_INNER Subroutine
-!******************************************************************************
-!******************************************************************************
-SUBROUTINE ILU0_PCG_INNER (N,NNZERO,INNER_ITER,AA_AUX,JA_AUX,IA_AUX,X_OLD,B,X)
-USE PARAM, ONLY                     : TOL
-IMPLICIT NONE
-INTEGER                            :: K,I,ITER,TL,N,NNZERO,ICODE,IDIAG,IERR,INNER_ITER
-REAL(8),DIMENSION(N)               :: X_OLD,X,P_OLD,P,R_OLD,R,AP,Z_OLD,Z,B
-INTEGER,DIMENSION(N+1)             :: IA_AUX,IAR
-INTEGER,DIMENSION(2*N-1)           :: IND
-REAL(8)                            :: NORM,S,ALPHA,BETA,M,MM
-REAL(8),DIMENSION(NNZERO)          :: AA_AUX,AAR,LUVAL
-INTEGER,DIMENSION(NNZERO)          :: JA_AUX,JAR
-REAL(8),ALLOCATABLE                :: SA(:),COEF(:,:),DIAG(:,:)
-INTEGER,ALLOCATABLE                :: IJA(:),JCOEF(:,:),IOFF(:)
-INTEGER,DIMENSION(N)               :: UPTR,IW
-REAL(8)                            :: SN,TIME_BEGIN,TIME_END
-!------------------------------------------------------------------------------
-CALL TOTAL_LENGTH          (N,IA_AUX,TL)
-ALLOCATE                   (SA(TL),IJA(TL))
-CALL CSRMSR                (TL,N,NNZERO,AA_AUX,JA_AUX,IA_AUX,SA,IJA)
-CALL TOTAL_LENGTH          (N,IA_AUX,TL)
-CALL INFDIA                (N,NNZERO,JA_AUX,IA_AUX,IND,IDIAG)
-ALLOCATE                   (COEF(N,IDIAG),JCOEF(N,IDIAG))
-ALLOCATE                   (IOFF(IDIAG),DIAG(N,IDIAG))
-CALL CSRELL                (N,NNZERO,AA_AUX,JA_AUX,IA_AUX,N,COEF,JCOEF,N,IDIAG,IERR)
-CALL CSRDIA                (N,NNZERO,IDIAG,10,AA_AUX,JA_AUX,IA_AUX,N,DIAG,IOFF,AAR,JAR,IAR,IND)
-!------------------------------------------------------------------------------
-CALL INITIAL_RESIDUAL (N,NNZERO,AA_AUX,JA_AUX,IA_AUX,B,X_OLD,R_OLD)
-!------------------------------------------------------------------------------
-CALL ILU0   (N,NNZERO,AA_AUX,JA_AUX,IA_AUX,LUVAL,UPTR,IW,ICODE)
-CALL LUSOL  (N,NNZERO,R_OLD,Z_OLD,LUVAL,JA_AUX,IA_AUX,UPTR)
-!------------------------------------------------------------------------------
-P_OLD=Z_OLD
-DO I=1,INNER_ITER
-SN=0.D0
-S=0.D0
-M=0.D0
-MM=0.D0
-!------------------------------------------------------------------------------
-! Stores the matrix in compressed spars row and multiplies by
-! vector
-!------------------------------------------------------------------------------
-!CALL CSR_MAT_V_PRODUCT     (N,NNZERO,AA_AUX,JA_AUX,IA_AUX,P_OLD,AP)
-!------------------------------------------------------------------------------
-! Stores the matrix in modified spars row and multiplies by
-! vector
-!------------------------------------------------------------------------------
-!CALL SPRSAX (TL,N,SA,IJA,P_OLD,AP)
-!------------------------------------------------------------------------------
-! Stores the matrix in Ellpack/Itpack format and multiplies by
-! vector
-!------------------------------------------------------------------------------
-!CALL AMUXE (N,P_OLD,AP,N,IDIAG,COEF,JCOEF)
-!------------------------------------------------------------------------------
-! Stores the matrix in Diagonal format and multiplies by
-! vector
-!------------------------------------------------------------------------------
-CALL AMUXD (N,P_OLD,AP,DIAG,N,IDIAG,IOFF)
-!------------------------------------------------------------------------------
-DO K=1,N
-M=M+R_OLD(K)*Z_OLD(K)
-MM=MM+AP(K)*P_OLD(K)
-END DO
-ALPHA=M/MM
-X=X_OLD+ALPHA*P_OLD
-R=R_OLD-ALPHA*AP
-!------------------------------------------------------------------------------
-CALL LUSOL  (N,NNZERO,R,Z,LUVAL,JA_AUX,IA_AUX,UPTR)
-!------------------------------------------------------------------------------
-DO K=1,N
-S=S+R(K)*Z(K)
-END DO
-BETA=S/M
-P=Z+BETA*P_OLD
-P_OLD=P
-X_OLD=X
-R_OLD=R
-Z_OLD=Z
-END DO
-!------------------------------------------------------------------------------
-END SUBROUTINE ILU0_PCG_INNER
-!******************************************************************************
-!******************************************************************************
-!                ILU0_PBCGSTAB_INNER Subroutine
-!******************************************************************************
-!******************************************************************************
-SUBROUTINE ILU0_PBCGSTAB_INNER (N,NNZERO,INNER_ITER,AA_AUX,JA_AUX,IA_AUX,X_OLD,B,X)
- USE PARAM, ONLY                    : TOL
- IMPLICIT NONE
- INTEGER                            :: I,K,ITER,N,NNZERO,TL,ICODE,IDIAG,IERR,INNER_ITER
- REAL(8),DIMENSION(NNZERO)          :: AA_AUX,AAR,LUVAL
- INTEGER,DIMENSION(NNZERO)          :: JA_AUX,JAR
- INTEGER,DIMENSION(2*N-1)           :: IND
- INTEGER,DIMENSION(N+1)             :: IA_AUX,IAR
- REAL(8),ALLOCATABLE                :: SA(:),COEF(:,:),DIAG(:,:)
- INTEGER,ALLOCATABLE                :: IJA(:),JCOEF(:,:),IOFF(:)
- REAL(8),DIMENSION(N)               :: X_OLD,X,P_OLD,P,R_OLD,R,RS,SR,SRHAT,T,V,V_OLD,PHAT,SHAT,B
- REAL(8)                            :: NORM,TIME_BEGIN,TIME_END,OM,OM_OLD,ALPHA,ALPHA_OLD,BETA,RHO,RHO_OLD
- INTEGER,DIMENSION(N)               :: UPTR,IW
-!------------------------------------------------------------------------------
- CALL TOTAL_LENGTH          (N,IA_AUX,TL)
- ALLOCATE                   (SA(TL),IJA(TL))
- CALL CSRMSR                (TL,N,NNZERO,AA_AUX,JA_AUX,IA_AUX,SA,IJA)
- CALL TOTAL_LENGTH          (N,IA_AUX,TL)
- CALL INFDIA                (N,NNZERO,JA_AUX,IA_AUX,IND,IDIAG)
- ALLOCATE                   (COEF(N,IDIAG),JCOEF(N,IDIAG))
- ALLOCATE                   (IOFF(IDIAG),DIAG(N,IDIAG))
- CALL CSRELL                (N,NNZERO,AA_AUX,JA_AUX,IA_AUX,N,COEF,JCOEF,N,IDIAG,IERR)
- CALL CSRDIA                (N,NNZERO,IDIAG,10,AA_AUX,JA_AUX,IA_AUX,N,DIAG,IOFF,AAR,JAR,IAR,IND)
-!------------------------------------------------------------------------------
-CALL INITIAL_RESIDUAL (N,NNZERO,AA_AUX,JA_AUX,IA_AUX,B,X_OLD,R_OLD)
-!------------------------------------------------------------------------------
- CALL ILU0   (N,NNZERO,AA_AUX,JA_AUX,IA_AUX,LUVAL,UPTR,IW,ICODE)
-!------------------------------------------------------------------------------
-! DO I=1,N
-! CALL RANDOM_NUMBER (HARVEST)
-! RS(I)=HARVEST
-! END DO
- RS=R_OLD
- DO I=1,INNER_ITER
- RHO=DOT_PRODUCT(RS,R_OLD)
-!------------------------------------------------------------------------------
- IF (RHO.EQ.0.D0) PRINT*, 'Biconjugate gradient stabilized method fails'
-!------------------------------------------------------------------------------
- IF (I.EQ.1) THEN
- P=R_OLD
- ELSE
- BETA=(RHO/RHO_OLD)*(ALPHA_OLD/OM_OLD)
- P=R_OLD+BETA*(P_OLD-OM_OLD*V_OLD)
- END IF
-!------------------------------------------------------------------------------
- CALL LUSOL  (N,NNZERO,P,PHAT,LUVAL,JA_AUX,IA_AUX,UPTR)
-!------------------------------------------------------------------------------
-! 1- Matrix by vector multiplication when matrix in CSR format
-!------------------------------------------------------------------------------
-! CALL CSR_MAT_V_PRODUCT     (N,NNZERO,AA_AUX,JA_AUX,IA_AUX,PHAT,V)
-!------------------------------------------------------------------------------
-! 2- Matrix by vector multiplication when matrix in MSR format
-!------------------------------------------------------------------------------
- CALL SPRSAX (TL,N,SA,IJA,PHAT,V)
-!------------------------------------------------------------------------------
-! 3- Matrix by vector multiplication when matrix in Ellpack-Itpack format
-!------------------------------------------------------------------------------
-! CALL AMUXE (N,PHAT,V,N,IDIAG,COEF,JCOEF)
-!------------------------------------------------------------------------------
-! 4- Matrix by vector multiplication when matrix in Diagonal format
-!------------------------------------------------------------------------------
-! CALL AMUXD (N,PHAT,V,DIAG,N,IDIAG,IOFF)
-!------------------------------------------------------------------------------
- ALPHA=RHO/DOT_PRODUCT(RS,V)
- SR=R_OLD-ALPHA*V
-!------------------------------------------------------------------------------
- CALL LUSOL  (N,NNZERO,SR,SRHAT,LUVAL,JA_AUX,IA_AUX,UPTR)
-!------------------------------------------------------------------------------
-! 1- Matrix by vector multiplication when matrix in CSR format
-!------------------------------------------------------------------------------
-! CALL CSR_MAT_V_PRODUCT     (N,NNZERO,AA_AUX,JA_AUX,IA_AUX,SRHAT,T)
-!------------------------------------------------------------------------------
-! 2- Matrix by vector multiplication when matrix in MSR format
-!------------------------------------------------------------------------------
- CALL SPRSAX (TL,N,SA,IJA,SRHAT,T)
-!------------------------------------------------------------------------------
-! 3- Matrix by vector multiplication when matrix in Ellpack-Itpack format
-!------------------------------------------------------------------------------
-! CALL AMUXE (N,SRHAT,T,N,IDIAG,COEF,JCOEF)
-!------------------------------------------------------------------------------
-! 4- Matrix by vector multiplication when matrix in Diagonal format
-!------------------------------------------------------------------------------
-! CALL AMUXD (N,SRHAT,T,DIAG,N,IDIAG,IOFF)
-!------------------------------------------------------------------------------
- OM=DOT_PRODUCT(T,SR)/DOT_PRODUCT(T,T)
- X= X_OLD+ALPHA*PHAT+OM*SRHAT
- R=SR-OM*T
- X_OLD=X
- R_OLD=R
- RHO_OLD=RHO
- P_OLD=P
- OM_OLD=OM
- V_OLD=V
- ALPHA_OLD=ALPHA
- END DO
-!------------------------------------------------------------------------------
- END SUBROUTINE ILU0_PBCGSTAB_INNER
-!******************************************************************************
-!******************************************************************************
-!                         CGS_INNER Subroutine
-!______________________________________________________________________________
-SUBROUTINE CGS_INNER (N,NNZERO,INNER_ITER,AA_AUX,JA_AUX,IA_AUX,X_OLD,B,X)
-USE PARAM, ONLY                    : TOL
-IMPLICIT NONE
-INTEGER                            :: I,K,ITER,N,NNZERO,TL,ICODE,IDIAG,IERR,INNER_ITER
-REAL(8),DIMENSION(NNZERO)          :: AA_AUX,AAR,LUVAL
-INTEGER,DIMENSION(NNZERO)          :: JA_AUX,JAR
-INTEGER,DIMENSION(2*N-1)           :: IND
-INTEGER,DIMENSION(N+1)             :: IA_AUX,IAR
-REAL(8),ALLOCATABLE                :: SA(:),COEF(:,:),DIAG(:,:)
-INTEGER,ALLOCATABLE                :: IJA(:),JCOEF(:,:),IOFF(:)
-REAL(8),DIMENSION(N)               :: X_OLD,X,P_OLD,P,R_OLD,U,U_OLD,R,AP,AUQ,RS,Q,B
-REAL(8)                            :: NORM,ALPHA,BETA,M,MM,MN,HARVEST,TIME_BEGIN,TIME_END
-!------------------------------------------------------------------------------
-CALL TOTAL_LENGTH          (N,IA_AUX,TL)
-ALLOCATE                   (SA(TL),IJA(TL))
-CALL CSRMSR                (TL,N,NNZERO,AA_AUX,JA_AUX,IA_AUX,SA,IJA)
-CALL TOTAL_LENGTH          (N,IA_AUX,TL)
-CALL INFDIA                (N,NNZERO,JA_AUX,IA_AUX,IND,IDIAG)
-ALLOCATE                   (COEF(N,IDIAG),JCOEF(N,IDIAG))
-ALLOCATE                   (IOFF(IDIAG),DIAG(N,IDIAG))
-CALL CSRELL                (N,NNZERO,AA_AUX,JA_AUX,IA_AUX,N,COEF,JCOEF,N,IDIAG,IERR)
-CALL CSRDIA                (N,NNZERO,IDIAG,10,AA_AUX,JA_AUX,IA_AUX,N,DIAG,IOFF,AAR,JAR,IAR,IND)
-!------------------------------------------------------------------------------
-CALL INITIAL_RESIDUAL (N,NNZERO,AA_AUX,JA_AUX,IA_AUX,B,X_OLD,R_OLD)
-!------------------------------------------------------------------------------
-!DO I=1,N
-!CALL RANDOM_NUMBER (HARVEST)
-!RS(I)=HARVEST
-!END DO
-RS=R_OLD
-P_OLD=R_OLD
-U_OLD=R_OLD
-DO I=1,INNER_ITER
-M=0.D0
-MM=0.D0
-MN=0.D0
-!------------------------------------------------------------------------------
-! Stores the matrix in compressed spars row and multiplies by
-! vector
-!------------------------------------------------------------------------------
-!CALL CSR_MAT_V_PRODUCT     (N,NNZERO,AA_AUX,JA_AUX,IA_AUX,P_OLD,AP)
-!------------------------------------------------------------------------------
-! Stores the matrix in modified spars row and multiplies by
-! vector
-!------------------------------------------------------------------------------
-!CALL SPRSAX (TL,N,SA,IJA,P_OLD,AP)
-!------------------------------------------------------------------------------
-! Stores the matrix in Ellpack/Itpack format and multiplies by
-! vector
-!------------------------------------------------------------------------------
-!CALL AMUXE (N,P_OLD,AP,N,IDIAG,COEF,JCOEF)
-!------------------------------------------------------------------------------
-! Stores the matrix in Diagonal format and multiplies by
-! vector
-!------------------------------------------------------------------------------
-CALL AMUXD (N,P_OLD,AP,DIAG,N,IDIAG,IOFF)
-!------------------------------------------------------------------------------
-DO K=1,N
-M=M+R_OLD(K)*RS(K)
-MM=MM+AP(K)*RS(K)
-END DO
-ALPHA=M/MM
-Q=U_OLD-ALPHA*AP
-X=X_OLD+ALPHA*(U_OLD+Q)
-!------------------------------------------------------------------------------
-! Stores the matrix in compressed spars row and multiplies by
-! vector
-!------------------------------------------------------------------------------
-!CALL CSR_MAT_V_PRODUCT     (N,NNZERO,AA_AUX,JA_AUX,IA_AUX,U_OLD+Q,AUQ)
-!------------------------------------------------------------------------------
-! Stores the matrix in modified spars row and multiplies by
-! vector
-!------------------------------------------------------------------------------
-CALL SPRSAX (TL,N,SA,IJA,U_OLD+Q,AUQ)
-!------------------------------------------------------------------------------
-! Stores the matrix in Ellpack/Itpack format and multiplies by
-! vector
-!------------------------------------------------------------------------------
-!CALL AMUXE (N,U_OLD+Q,AUQ,N,IDIAG,COEF,JCOEF)
-!------------------------------------------------------------------------------
-! Stores the matrix in Diagonal format and multiplies by
-! vector
-!------------------------------------------------------------------------------
-!CALL AMUXD (N,U_OLD+Q,AUQ,DIAG,N,IDIAG,IOFF)
-!------------------------------------------------------------------------------
-R=R_OLD-ALPHA*AUQ
-DO K=1,N
-MN=MN+R(K)*RS(K)
-END DO
-BETA=MN/M
-U=R+BETA*Q
-P=U+BETA*(Q+BETA*P_OLD)
-P_OLD=P
-X_OLD=X
-R_OLD=R
-U_OLD=U
-END DO
-!------------------------------------------------------------------------------
-END SUBROUTINE CGS_INNER
-!******************************************************************************
-!******************************************************************************
-!                      ILU0_PCGS_INNER Subroutine
-!******************************************************************************
-!******************************************************************************
- SUBROUTINE ILU0_PCGS_INNER (N,NNZERO,INNER_ITER,AA_AUX,JA_AUX,IA_AUX,X_OLD,B,X)
- USE PARAM, ONLY                    : TOL
- IMPLICIT NONE
- INTEGER                            :: I,K,ITER,N,NNZERO,TL,ICODE,IDIAG,IERR,INNER_ITER
- REAL(8),DIMENSION(NNZERO)          :: AA_AUX,AAR,LUVAL
- INTEGER,DIMENSION(NNZERO)          :: JA_AUX,JAR
- INTEGER,DIMENSION(2*N-1)           :: IND
- INTEGER,DIMENSION(N+1)             :: IA_AUX,IAR
- REAL(8),ALLOCATABLE                :: SA(:),COEF(:,:),DIAG(:,:)
- INTEGER,ALLOCATABLE                :: IJA(:),JCOEF(:,:),IOFF(:)
- REAL(8),DIMENSION(N)               :: X_OLD,X,P_OLD,P,R_OLD,R,RS,Q,Q_OLD,UHAT,V,PHAT,U,QHAT,B
- REAL(8)                            :: NORM,ALPHA,BETA,HARVEST,TIME_BEGIN,TIME_END,RHO,RHO_OLD
- INTEGER,DIMENSION(N)               :: UPTR,IW
-!------------------------------------------------------------------------------
- CALL TOTAL_LENGTH          (N,IA_AUX,TL)
- ALLOCATE                   (SA(TL),IJA(TL))
- CALL CSRMSR                (TL,N,NNZERO,AA_AUX,JA_AUX,IA_AUX,SA,IJA)
- CALL TOTAL_LENGTH          (N,IA_AUX,TL)
- CALL INFDIA                (N,NNZERO,JA_AUX,IA_AUX,IND,IDIAG)
- ALLOCATE                   (COEF(N,IDIAG),JCOEF(N,IDIAG))
- ALLOCATE                   (IOFF(IDIAG),DIAG(N,IDIAG))
- CALL CSRELL                (N,NNZERO,AA_AUX,JA_AUX,IA_AUX,N,COEF,JCOEF,N,IDIAG,IERR)
- CALL CSRDIA                (N,NNZERO,IDIAG,10,AA_AUX,JA_AUX,IA_AUX,N,DIAG,IOFF,AAR,JAR,IAR,IND)
-!------------------------------------------------------------------------------
- CALL INITIAL_RESIDUAL (N,NNZERO,AA_AUX,JA_AUX,IA_AUX,B,X_OLD,R_OLD)
-!------------------------------------------------------------------------------
- CALL ILU0   (N,NNZERO,AA_AUX,JA_AUX,IA_AUX,LUVAL,UPTR,IW,ICODE)
- !-----------------------------------------------------------------------------
-! DO I=1,N
-! CALL RANDOM_NUMBER (HARVEST)
-! RS(I)=HARVEST
-! END DO
- RS=R_OLD
- DO I=1,INNER_ITER
- RHO=DOT_PRODUCT(RS,R_OLD)
-!------------------------------------------------------------------------------
- IF (RHO.EQ.0.D0) PRINT*, 'conjugate gradient squared method fails'
-!------------------------------------------------------------------------------
- IF (I.EQ.1) THEN
-    U=R_OLD
-    P=U
- ELSE
-    BETA=RHO/RHO_OLD
-    U=R_OLD+BETA*Q_OLD
-    P=U+BETA*(Q_OLD+BETA*P_OLD)
- ENDIF
-!------------------------------------------------------------------------------
- CALL LUSOL  (N,NNZERO,P,PHAT,LUVAL,JA_AUX,IA_AUX,UPTR)
-!------------------------------------------------------------------------------
-! 1- Matrix by vector multiplication when matrix in CSR format
-!------------------------------------------------------------------------------
-! CALL CSR_MAT_V_PRODUCT     (N,NNZERO,AA_AUX,JA_AUX,IA_AUX,PHAT,V)
-!------------------------------------------------------------------------------
-! 2- Matrix by vector multiplication when matrix in MSR format
-!------------------------------------------------------------------------------
- CALL SPRSAX (TL,N,SA,IJA,PHAT,V)
-!------------------------------------------------------------------------------
-! 3- Matrix by vector multiplication when matrix in Ellpack-Itpack format
-!------------------------------------------------------------------------------
-! CALL AMUXE (N,PHAT,V,N,IDIAG,COEF,JCOEF)
-!------------------------------------------------------------------------------
-! 4- Matrix by vector multiplication when matrix in Diagonal format
-!------------------------------------------------------------------------------
-! CALL AMUXD (N,PHAT,V,DIAG,N,IDIAG,IOFF)
-!------------------------------------------------------------------------------
- ALPHA=RHO/(DOT_PRODUCT(RS,V))
- Q=U-ALPHA*V
- CALL LUSOL  (N,NNZERO,U+Q,UHAT,LUVAL,JA_AUX,IA_AUX,UPTR)
- X=X_OLD+ALPHA*UHAT
-!------------------------------------------------------------------------------
-! 1- Matrix by vector multiplication when matrix in CSR format
-!------------------------------------------------------------------------------
-! CALL CSR_MAT_V_PRODUCT     (N,NNZERO,AA_AUX,JA_AUX,IA_AUX,UHAT,QHAT)
-!------------------------------------------------------------------------------
-! 2- Matrix by vector multiplication when matrix in MSR format
-!------------------------------------------------------------------------------
- CALL SPRSAX (TL,N,SA,IJA,UHAT,QHAT)
-!------------------------------------------------------------------------------
-! 3- Matrix by vector multiplication when matrix in Ellpack-Itpack format
-!------------------------------------------------------------------------------
-! CALL AMUXE (N,UHAT,QHAT,N,IDIAG,COEF,JCOEF)
-!------------------------------------------------------------------------------
-! 4- Matrix by vector multiplication when matrix in Diagonal format
-!------------------------------------------------------------------------------
-! CALL AMUXD (N,UHAT,QHAT,DIAG,N,IDIAG,IOFF)
-!------------------------------------------------------------------------------
-R=R_OLD-ALPHA*QHAT
-P_OLD=P
-X_OLD=X
-R_OLD=R
-Q_OLD=Q
-RHO_OLD=RHO
-END DO
-!------------------------------------------------------------------------------
-END SUBROUTINE ILU0_PCGS_INNER
-!******************************************************************************
-!******************************************************************************
-!                          BCGSTAB_INNER Subroutine
-!******************************************************************************
-!******************************************************************************
-SUBROUTINE BCGSTAB_INNER (N,NNZERO,INNER_ITER,AA_AUX,JA_AUX,IA_AUX,X_OLD,B,X)
-USE PARAM, ONLY                    : TOL
-IMPLICIT NONE
-INTEGER                            :: I,K,ITER,N,NNZERO,TL,ICODE,IDIAG,IERR,INNER_ITER
-REAL(8),DIMENSION(NNZERO)          :: AA_AUX,AAR,LUVAL
-INTEGER,DIMENSION(NNZERO)          :: JA_AUX,JAR
-INTEGER,DIMENSION(2*N-1)           :: IND
-INTEGER,DIMENSION(N+1)             :: IA_AUX,IAR
-REAL(8),ALLOCATABLE                :: SA(:),COEF(:,:),DIAG(:,:)
-INTEGER,ALLOCATABLE                :: IJA(:),JCOEF(:,:),IOFF(:)
-REAL(8),DIMENSION(N)               :: X_OLD,X,P_OLD,P,R_OLD,R,AP,AQQ,RS,QQ,B
-REAL(8)                            :: NORM,ALPHA,BETA,M,MS,MMS,MM,MN,HARVEST,TIME_BEGIN,TIME_END,OM
-!------------------------------------------------------------------------------
-CALL TOTAL_LENGTH          (N,IA_AUX,TL)
-ALLOCATE                   (SA(TL),IJA(TL))
-CALL CSRMSR                (TL,N,NNZERO,AA_AUX,JA_AUX,IA_AUX,SA,IJA)
-CALL TOTAL_LENGTH          (N,IA_AUX,TL)
-CALL INFDIA                (N,NNZERO,JA_AUX,IA_AUX,IND,IDIAG)
-ALLOCATE                   (COEF(N,IDIAG),JCOEF(N,IDIAG))
-ALLOCATE                   (IOFF(IDIAG),DIAG(N,IDIAG))
-CALL CSRELL                (N,NNZERO,AA_AUX,JA_AUX,IA_AUX,N,COEF,JCOEF,N,IDIAG,IERR)
-CALL CSRDIA                (N,NNZERO,IDIAG,10,AA_AUX,JA_AUX,IA_AUX,N,DIAG,IOFF,AAR,JAR,IAR,IND)
-!------------------------------------------------------------------------------
-CALL INITIAL_RESIDUAL (N,NNZERO,AA_AUX,JA_AUX,IA_AUX,B,X_OLD,R_OLD)
-!------------------------------------------------------------------------------
-!DO I=1,N
-!CALL RANDOM_NUMBER (HARVEST)
-!RS(I)=HARVEST
-!END DO
-RS=R_OLD
-P_OLD=R_OLD
-DO I=1,INNER_ITER
-M=0.D0
-MS=0.D0
-MMS=0.D0
-MM=0.D0
-MN=0.D0
-!------------------------------------------------------------------------------
-! Stores the matrix in compressed spars row and multiplies by
-! vector
-!------------------------------------------------------------------------------
-!CALL CSR_MAT_V_PRODUCT     (N,NNZERO,AA_AUX,JA_AUX,IA_AUX,P_OLD,AP)
-!------------------------------------------------------------------------------
-! Stores the matrix in modified spars row and multiplies by
-! vector
-!------------------------------------------------------------------------------
-CALL SPRSAX (TL,N,SA,IJA,P_OLD,AP)
-!------------------------------------------------------------------------------
-! Stores the matrix in Ellpack/Itpack format and multiplies by
-! vector
-!------------------------------------------------------------------------------
-!CALL AMUXE (N,P_OLD,AP,N,IDIAG,COEF,JCOEF)
-!------------------------------------------------------------------------------
-! Stores the matrix in Diagonal format and multiplies by
-! vector
-!------------------------------------------------------------------------------
-!CALL AMUXD (N,P_OLD,AP,DIAG,N,IDIAG,IOFF)
-!------------------------------------------------------------------------------
-DO K=1,N
-M=M+R_OLD(K)*RS(K)
-MM=MM+AP(K)*RS(K)
-END DO
-ALPHA=M/MM
-QQ=R_OLD-ALPHA*AP
-!------------------------------------------------------------------------------
-! Stores the matrix in compressed spars row and multiplies by
-! vector
-!------------------------------------------------------------------------------
-!CALL CSR_MAT_V_PRODUCT     (N,NNZERO,AA_AUX,JA_AUX,IA_AUX,QQ,AQQ)
-!------------------------------------------------------------------------------
-! Stores the matrix in modified spars row and multiplies by
-! vector
-!------------------------------------------------------------------------------
-CALL SPRSAX (TL,N,SA,IJA,QQ,AQQ)
-!------------------------------------------------------------------------------
-! Stores the matrix in Ellpack/Itpack format and multiplies by
-! vector
-!------------------------------------------------------------------------------
-!CALL AMUXE (N,QQ,AQQ,N,IDIAG,COEF,JCOEF)
-!------------------------------------------------------------------------------
-! Stores the matrix in Diagonal format and multiplies by
-! vector
-!------------------------------------------------------------------------------
-!CALL AMUXD (N,QQ,AQQ,DIAG,N,IDIAG,IOFF)
-!------------------------------------------------------------------------------
-DO K=1,N
-MS=MS+AQQ(K)*QQ(K)
-MMS=MMS+AQQ(K)*AQQ(K)
-END DO
-OM=MS/MMS
-X=X_OLD+ALPHA*P_OLD+OM*QQ
-R=QQ-OM*AQQ
-DO K=1,N
-MN=MN+R(K)*RS(K)
-END DO
-BETA=(MN/M)*(ALPHA/OM)
-P=R+BETA*(P_OLD-OM*AP)
-P_OLD=P
-X_OLD=X
-R_OLD=R
-END DO
-!------------------------------------------------------------------------------
-END SUBROUTINE BCGSTAB_INNER
-!******************************************************************************
-!******************************************************************************
-!                      CR_INNER Subroutine
-!******************************************************************************
-!******************************************************************************
-SUBROUTINE CR_INNER (MD,NNZERO,INNER_ITER,AA_AUX,JA_AUX,IA_AUX,X_OLD,B,X)
-USE PARAM, ONLY                     : TOL
-IMPLICIT NONE
-INTEGER                            :: K,ITER,TL,MD,NNZERO,IDIAG,IERR,INNER_ITER,I
-REAL(8),DIMENSION(MD)              :: X_OLD,X,P_OLD,P,R_OLD,R,AP,AP_OLD,AR_OLD,AR,B
-INTEGER,DIMENSION(MD+1)            :: IA_AUX,IAR
-INTEGER,DIMENSION(2*MD-1)          :: IND
-REAL(8)                            :: NORM,S,ALPHA,BETA,TIME_BEGIN,TIME_END
-REAL(8),DIMENSION(NNZERO)          :: AA_AUX,AAR
-INTEGER,DIMENSION(NNZERO)          :: JA_AUX,JAR
-REAL(8),ALLOCATABLE                :: SA(:),DIAG(:,:),COEF(:,:)
-INTEGER,ALLOCATABLE                :: IJA(:),IOFF(:),JCOEF(:,:)
-!------------------------------------------------------------------------------
-CALL TOTAL_LENGTH          (MD,IA_AUX,TL)
-ALLOCATE                   (SA(TL),IJA(TL))
-CALL CSRMSR                (TL,MD,NNZERO,AA_AUX,JA_AUX,IA_AUX,SA,IJA)
-CALL TOTAL_LENGTH          (MD,IA_AUX,TL)
-CALL INFDIA                (MD,NNZERO,JA_AUX,IA_AUX,IND,IDIAG)
-ALLOCATE                   (COEF(MD,IDIAG),JCOEF(MD,IDIAG))
-ALLOCATE                   (IOFF(IDIAG),DIAG(MD,IDIAG))
-CALL CSRELL                (MD,NNZERO,AA_AUX,JA_AUX,IA_AUX,MD,COEF,JCOEF,MD,IDIAG,IERR)
-CALL CSRDIA                (MD,NNZERO,IDIAG,10,AA_AUX,JA_AUX,IA_AUX,MD,DIAG,IOFF,AAR,JAR,IAR,IND)
-!------------------------------------------------------------------------------
-CALL INITIAL_RESIDUAL (MD,NNZERO,AA_AUX,JA_AUX,IA_AUX,B,X_OLD,R_OLD)
-!------------------------------------------------------------------------------
-P_OLD=R_OLD
-CALL SPRSAX (TL,MD,SA,IJA,P_OLD,AP_OLD)
-DO I=1,INNER_ITER
-!------------------------------------------------------------------------------
-! Stores the matrix in compressed spars row and multiplies by
-! vector
-!------------------------------------------------------------------------------
-!CALL CSR_MAT_V_PRODUCT     (MD,NNZERO,AA_AUX,JA_AUX,IA_AUX,R_OLD,AR_OLD)
-!------------------------------------------------------------------------------
-! Stores the matrix in modified spars row and multiplies by
-! vector
-!------------------------------------------------------------------------------
-CALL SPRSAX (TL,MD,SA,IJA,R_OLD,AR_OLD)
-!------------------------------------------------------------------------------
-! Stores the matrix in Ellpack/Itpack format and multiplies by
-! vector
-!------------------------------------------------------------------------------
-!CALL AMUXE (MD,R_OLD,AR_OLD,MD,IDIAG,COEF,JCOEF)
-!------------------------------------------------------------------------------
-! Stores the matrix in Diagonal format and multiplies by
-! vector
-!------------------------------------------------------------------------------
-!CALL AMUXD (MD,R_OLD,AR_OLD,DIAG,MD,IDIAG,IOFF)
-!------------------------------------------------------------------------------
-ALPHA=DOT_PRODUCT(R_OLD,AR_OLD)/DOT_PRODUCT(AP_OLD,AP_OLD)
-X=X_OLD+ALPHA*P_OLD
-R=R_OLD-ALPHA*AP_OLD
-!------------------------------------------------------------------------------
-! Stores the matrix in compressed spars row and multiplies by
-! vector
-!------------------------------------------------------------------------------
-!CALL CSR_MAT_V_PRODUCT     (MD,NNZERO,AA_AUX,JA_AUX,IA_AUX,R,AR)
-!------------------------------------------------------------------------------
-! Stores the matrix in modified spars row and multiplies by
-! vector
-!------------------------------------------------------------------------------
-CALL SPRSAX (TL,MD,SA,IJA,R,AR)
-!------------------------------------------------------------------------------
-! Stores the matrix in Ellpack/Itpack format and multiplies by
-! vector
-!------------------------------------------------------------------------------
-!CALL AMUXE (MD,R,AR,MD,IDIAG,COEF,JCOEF)
-!------------------------------------------------------------------------------
-! Stores the matrix in Diagonal format and multiplies by
-! vector
-!------------------------------------------------------------------------------
-!CALL AMUXD (MD,R,AR,DIAG,MD,IDIAG,IOFF)
-!------------------------------------------------------------------------------
-BETA=DOT_PRODUCT(R,AR)/DOT_PRODUCT(R_OLD,AR_OLD)
-P=R+BETA*P_OLD
-AP=AR+BETA*AP_OLD
-P_OLD=P
-X_OLD=X
-R_OLD=R
-AP_OLD=AP
-END DO
-!------------------------------------------------------------------------------
-END SUBROUTINE CR_INNER
-!******************************************************************************
-!******************************************************************************
-!                      GMRES_STAR Subroutine
-!******************************************************************************
-!******************************************************************************
-SUBROUTINE GMRES_STAR (MD,NNZERO,AA_AUX,JA_AUX,IA_AUX,XX_OLD,R_OLD,X)
-USE PARAM, ONLY                   : TOL,ITMAX
-IMPLICIT NONE
-INTEGER                           :: I,K,MD,NNZERO,IERR,TL,IDIAG
-REAL(8)                           :: NORMC,NORM,ALPHA,CR,S,SR
-REAL(8),ALLOCATABLE               :: SA(:),DIAG(:,:),COEF(:,:)
-INTEGER,ALLOCATABLE               :: IJA(:),IOFF(:),JCOEF(:,:)
-REAL(8),DIMENSION(NNZERO)         :: AA_AUX,AAR
-INTEGER,DIMENSION(NNZERO)         :: JA_AUX,JAR
-INTEGER,DIMENSION(MD+1)           :: IA_AUX,IAR
-INTEGER,DIMENSION(2*MD-1)         :: IND
-REAL(8),DIMENSION(MD)             :: ZM,X_OLD,XX_OLD,R_OLD,X,R,C
-REAL(8),DIMENSION(ITMAX,MD)       :: CC,U
-!------------------------------------------------------------------------------
-CALL TOTAL_LENGTH          (MD,IA_AUX,TL)
-ALLOCATE                   (SA(TL),IJA(TL))
-CALL CSRMSR                (TL,MD,NNZERO,AA_AUX,JA_AUX,IA_AUX,SA,IJA)
-CALL TOTAL_LENGTH          (MD,IA_AUX,TL)
-CALL INFDIA                (MD,NNZERO,JA_AUX,IA_AUX,IND,IDIAG)
-ALLOCATE                   (COEF(MD,IDIAG),JCOEF(MD,IDIAG))
-ALLOCATE                   (IOFF(IDIAG),DIAG(MD,IDIAG))
-CALL CSRELL                (MD,NNZERO,AA_AUX,JA_AUX,IA_AUX,MD,COEF,JCOEF,MD,IDIAG,IERR)
-CALL CSRDIA                (MD,NNZERO,IDIAG,10,AA_AUX,JA_AUX,IA_AUX,MD,DIAG,IOFF,AAR,JAR,IAR,IND)
-!------------------------------------------------------------------------------
-DO I=1,ITMAX
-!------------------------------------------------------------------------------
-CALL CG_INNER            (MD,NNZERO,10,AA_AUX,JA_AUX,IA_AUX,XX_OLD,R_OLD,ZM)
-!CALL ILU0_PCG_INNER      (MD,NNZERO,10,AA_AUX,JA_AUX,IA_AUX,XX_OLD,R_OLD,ZM)
-!CALL BCGSTAB_INNER       (MD,NNZERO,50,AA_AUX,JA_AUX,IA_AUX,XX_OLD,R_OLD,ZM)
-!CALL ILU0_PBCGSTAB_INNER (MD,NNZERO,50,AA_AUX,JA_AUX,IA_AUX,XX_OLD,R_OLD,ZM)
-!CALL CGS_INNER           (MD,NNZERO,50,AA_AUX,JA_AUX,IA_AUX,XX_OLD,R_OLD,ZM)
-!CALL ILU0_PCGS_INNER     (MD,NNZERO,50,AA_AUX,JA_AUX,IA_AUX,XX_OLD,R_OLD,ZM)
-!CALL CR_INNER            (MD,NNZERO,50,AA_AUX,JA_AUX,IA_AUX,XX_OLD,R_OLD,ZM)
-!------------------------------------------------------------------------------
-! Stores the matrix in compressed spars row and multiplies by
-! vector
-!------------------------------------------------------------------------------
-!CALL CSR_MAT_V_PRODUCT     (MD,NNZERO,AA_AUX,JA_AUX,IA_AUX,ZM,C)
-!------------------------------------------------------------------------------
-! Stores the matrix in modified spars row and multiplies by
-! vector
-!------------------------------------------------------------------------------
-CALL SPRSAX (TL,MD,SA,IJA,ZM,C)
-!------------------------------------------------------------------------------
-! Stores the matrix in Ellpack/Itpack format and multiplies by
-! vector
-!------------------------------------------------------------------------------
-!CALL AMUXE (MD,ZM,C,MD,IDIAG,COEF,JCOEF)
-!------------------------------------------------------------------------------
-! Stores the matrix in Diagonal format and multiplies by
-! vector
-!------------------------------------------------------------------------------
-!CALL AMUXD (MD,ZM,C,DIAG,MD,IDIAG,IOFF)
-!------------------------------------------------------------------------------
-DO K=1,I-1
-ALPHA=DOT_PRODUCT(CC(K,:),C)
-C=C-ALPHA*CC(K,:)
-ZM=ZM-ALPHA*U(K,:)
-END DO
-S=DOT_PRODUCT(C,C)
-NORMC=DSQRT(S)
-CC(I,:)=C/NORMC
-U(I,:)=ZM/NORMC
-CR=DOT_PRODUCT(CC(I,:),R_OLD)
-X=X_OLD+CR*U(I,:)
-R=R_OLD-CR*CC(I,:)
-SR=DOT_PRODUCT(R,R)
-NORM=DSQRT(SR)/MD
-R_OLD=R
-X_OLD=X
-!PRINT*,NORM
-CALL SUCCESSIVE_SOL (NORM,I)
-IF (NORM.LT.TOL) THEN
-EXIT
-ELSE IF (I.EQ.ITMAX.AND.NORM.GT.TOL) THEN
-PRINT*, 'convergency is not met by this number of iteration'
-END IF
-END DO
-!------------------------------------------------------------------------------
-END SUBROUTINE GMRES_STAR
-!******************************************************************************
-!******************************************************************************
-!                            Conjugate Residual Subroutine
-!******************************************************************************
-!******************************************************************************
-SUBROUTINE CR (MD,NNZERO,AA_AUX,JA_AUX,IA_AUX,X_OLD,R_OLD,X)
-USE PARAM, ONLY                     : TOL,SAVE_ITERATION_NORM
-IMPLICIT NONE
-INTEGER                            :: K,ITER,TL,MD,NNZERO,IDIAG,IERR
-REAL(8),DIMENSION(MD)              :: X_OLD,X,P_OLD,P,R_OLD,R,AP,AP_OLD,AR_OLD,AR
-INTEGER,DIMENSION(MD+1)            :: IA_AUX,IAR
-INTEGER,DIMENSION(2*MD-1)          :: IND
-REAL(8)                            :: NORM,S,ALPHA,BETA,TIME_BEGIN,TIME_END
-REAL(8),DIMENSION(NNZERO)          :: AA_AUX,AAR
-INTEGER,DIMENSION(NNZERO)          :: JA_AUX,JAR
-REAL(8),ALLOCATABLE                :: SA(:),DIAG(:,:),COEF(:,:)
-INTEGER,ALLOCATABLE                :: IJA(:),IOFF(:),JCOEF(:,:)
-!------------------------------------------------------------------------------
-CALL TOTAL_LENGTH          (MD,IA_AUX,TL)
-ALLOCATE                   (SA(TL),IJA(TL))
-CALL CSRMSR                (TL,MD,NNZERO,AA_AUX,JA_AUX,IA_AUX,SA,IJA)
-CALL TOTAL_LENGTH          (MD,IA_AUX,TL)
-CALL INFDIA                (MD,NNZERO,JA_AUX,IA_AUX,IND,IDIAG)
-ALLOCATE                   (COEF(MD,IDIAG),JCOEF(MD,IDIAG))
-ALLOCATE                   (IOFF(IDIAG),DIAG(MD,IDIAG))
-CALL CSRELL                (MD,NNZERO,AA_AUX,JA_AUX,IA_AUX,MD,COEF,JCOEF,MD,IDIAG,IERR)
-CALL CSRDIA                (MD,NNZERO,IDIAG,10,AA_AUX,JA_AUX,IA_AUX,MD,DIAG,IOFF,AAR,JAR,IAR,IND)
-!------------------------------------------------------------------------------
-P_OLD=R_OLD
-CALL SPRSAX (TL,MD,SA,IJA,P_OLD,AP_OLD)
-NORM=1.D0
-!CALL CPU_TIME (TIME_BEGIN)
-DO WHILE (NORM.GT.TOL)
-ITER=ITER+1
-!PRINT*,ITER
-!------------------------------------------------------------------------------
-! Stores the matrix in compressed spars row and multiplies by
-! vector
-!------------------------------------------------------------------------------
-!CALL CSR_MAT_V_PRODUCT     (MD,NNZERO,AA_AUX,JA_AUX,IA_AUX,R_OLD,AR_OLD)
-!------------------------------------------------------------------------------
-! Stores the matrix in modified spars row and multiplies by
-! vector
-!------------------------------------------------------------------------------
-CALL SPRSAX (TL,MD,SA,IJA,R_OLD,AR_OLD)
-!------------------------------------------------------------------------------
-! Stores the matrix in Ellpack/Itpack format and multiplies by
-! vector
-!------------------------------------------------------------------------------
-!CALL AMUXE (MD,R_OLD,AR_OLD,MD,IDIAG,COEF,JCOEF)
-!------------------------------------------------------------------------------
-! Stores the matrix in Diagonal format and multiplies by
-! vector
-!------------------------------------------------------------------------------
-!CALL AMUXD (MD,R_OLD,AR_OLD,DIAG,MD,IDIAG,IOFF)
-!------------------------------------------------------------------------------
-ALPHA=DOT_PRODUCT(R_OLD,AR_OLD)/DOT_PRODUCT(AP_OLD,AP_OLD)
-X=X_OLD+ALPHA*P_OLD
-R=R_OLD-ALPHA*AP_OLD
-!------------------------------------------------------------------------------
-! Stores the matrix in compressed spars row and multiplies by
-! vector
-!------------------------------------------------------------------------------
-!CALL CSR_MAT_V_PRODUCT     (MD,NNZERO,AA_AUX,JA_AUX,IA_AUX,R,AR)
-!------------------------------------------------------------------------------
-! Stores the matrix in modified spars row and multiplies by
-! vector
-!------------------------------------------------------------------------------
-CALL SPRSAX (TL,MD,SA,IJA,R,AR)
-!------------------------------------------------------------------------------
-! Stores the matrix in Ellpack/Itpack format and multiplies by
-! vector
-!------------------------------------------------------------------------------
-!CALL AMUXE (MD,R,AR,MD,IDIAG,COEF,JCOEF)
-!------------------------------------------------------------------------------
-! Stores the matrix in Diagonal format and multiplies by
-! vector
-!------------------------------------------------------------------------------
-!CALL AMUXD (MD,R,AR,DIAG,MD,IDIAG,IOFF)
-!------------------------------------------------------------------------------
-BETA=DOT_PRODUCT(R,AR)/DOT_PRODUCT(R_OLD,AR_OLD)
-P=R+BETA*P_OLD
-AP=AR+BETA*AP_OLD
-P_OLD=P
-X_OLD=X
-R_OLD=R
-AP_OLD=AP
-S=DOT_PRODUCT(R,R)
-NORM=DSQRT(S)/MD
-!PRINT*,NORM
-!CALL CPU_TIME (TIME_END)
-!CALL CPU_TIME_WRITE (TIME_BEGIN,TIME_END,ITER)
-IF (SAVE_ITERATION_NORM) CALL SUCCESSIVE_SOL (NORM,ITER)
-END DO
-!------------------------------------------------------------------------------
-END SUBROUTINE CR
-!******************************************************************************
-!******************************************************************************
+
+
+
+
