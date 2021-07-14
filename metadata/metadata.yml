@@ -1,0 +1,22 @@
+metadata_version: 1
+name: HOC-Krylov Solver
+description: HOC-Krylov Solver is a Poisson's equation solver employing conjugate gradient (CG), conjugate gradient squared  (CGS), bi-conjugate gradient stabilized (BiCGSTAB), and their ILU0-preconditioned versions (incomplete Cholesky factorization). The high order compact finite difference stencils (4 and 6th) are applied for the discretization of Poisson's equation which results in the nona-diagonal systems. Selecting the various storage schemes for sparse matrices accompanying the HOC stencil are the key features of this open-source software package. This package enables us to solve Poisson's equation discretized using a HOC scheme with lower exact error and acceptable CPU time compared to the traditional discretization based on penta-diagonal and non-compact nona-diagonal stencils.
+tags:
+- Krylov subspace methods
+- Conjugate Gradient Squared Method
+- Conjugate Gradient Method
+- Bi Conjugate Gradient Stabilized
+- Poisson's Equation
+- High Order Compact
+- Compact Storage Schemes
+- Sparse Matrix
+- CPU-time
+- ILU0
+- Preconditioning
+authors:
+- name: Iman Farahbakhsh
+  affiliations:
+  - name: Amirkabir University of Technology
+corresponding_contributor:
+  name: Iman Farahbakhsh
+  email: i.farahbakhsh@aut.ac.ir
