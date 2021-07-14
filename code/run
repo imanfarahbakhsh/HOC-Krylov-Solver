@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
 set -ex
-gfortran -ffree-form HOC Krylov Solver.f95
+gfortran -ffree-form HOC_Krylov_Solver.f95
 ls -l
 ./a.out
