@@ -387,7 +387,7 @@ IMPLICIT NONE
 INTEGER                      :: I,J
 REAL(8),DIMENSION(IM,JM)     :: X,Y,T,F
 CHARACTER*7                  :: ext
-CHARACTER*12                 :: fname
+CHARACTER*21                 :: fname
 !------------------------------------------------------------------------------
        fname='/results/RESULTS.PLT'
 !------------------------------------------------------------------------------
@@ -814,79 +814,6 @@ END SUBROUTINE INITIAL_RESIDUAL
 !******************************************************************************
 !******************************************************************************
 !******************************************************************************
-!This subroutine has been developed in FORTRAN 90 via Iman Farahbakhsh
-!on Dec 03 2009 with some adaptions from Numerical Recipes in FORTRAN 77
-!______________________________________________________________________________
-SUBROUTINE WRITE_EXE (NROT,D,V,NP,A)
-IMPLICIT NONE
-INTEGER                    :: J,L,KK,LL,NP,NROT,K
-REAL(8),DIMENSION(NP,NP)   :: A,V
-REAL(8),DIMENSION(NP)      :: R
-COMPLEX(8),DIMENSION(NP)   :: D
-REAL(8)                    :: RATIO
-!------------------------------------------------------------------------------
-WRITE (*,'(1X,A,I10)') 'Number of JACOBI rotations: ',NROT
-WRITE (*,'(/1X,A)') 'Eigenvalues:'
-DO J=1,NP
-WRITE (*,'(1X,5F12.6)') D(J)
-END DO
-WRITE(*,'(/1X,A)') 'Eigenvectors:'
-DO J=1,NP
-WRITE(*,'(1X,T5,A,I3)') 'Number',J
-WRITE(*,'(1X,5F12.6)') (V(K,J),K=1,NP)
-END DO
-!eigenvector test
-WRITE(*,'(/1X,A)') 'Eigenvector Test'
-DO J=1,NP
-DO L=1,NP
-R(L)=0.D0
-DO K=1,NP
-IF (K.GT.L) THEN
-KK=L
-LL=K
-ELSE
-KK=K
-LL=L
-END IF
-R(L)=R(L)+A(LL,KK)*V(K,J)
-END DO
-END DO
-WRITE(*,'(/1X,A,I3)') 'Vector Number',J
-WRITE(*,'(/1X,T7,A,T18,A,T31,A)')&
-'Vector','Mtrx*Vec.','Ratio'
-DO  L=1,NP
-RATIO=R(L)/V(L,J)
-WRITE(*,'(1X,3F12.6)') V(L,J),R(L),RATIO
-END DO
-END DO
-WRITE(*,*) 'press RETURN to END DO...'
-READ(*,*)
-!------------------------------------------------------------------------------
-END SUBROUTINE WRITE_EXE
-!******************************************************************************
-!******************************************************************************
-!******************************************************************************
-!This subroutine has been developed in FORTRAN 90 via Iman Farahbakhsh
-!on Dec 03 2009 with some adaptions from Numerical Recipes in FORTRAN 77
-!______________________________________________________________________________
-SUBROUTINE WRITE_FILE (D,NP,A)
-IMPLICIT NONE
-INTEGER                             :: I,NP
-REAL(8),DIMENSION(NP,NP)            :: A
-COMPLEX(8),DIMENSION(NP)            :: D
-!------------------------------------------------------------------------------
-OPEN (UNIT=1,FILE='EIGEN_VALUE_DISTRIBUTION.PLT',STATUS='UNKNOWN')
-WRITE(1,*) 'VARIABLES=REAL,IMAGINARY'
-WRITE(1,*) 'ZONE'
-WRITE(1,*) 'F=POINT'
-DO I=1,NP
-WRITE(1,*) REAL(D(I)),IMAG(D(I))
-END DO
-!------------------------------------------------------------------------------
-END SUBROUTINE WRITE_FILE
-!******************************************************************************
-!******************************************************************************
-!******************************************************************************
 !                      MATRIX_BY_VECTOR PRODUCT
 !                       MATRIX IN CSR_FORMAT
 !______________________________________________________________________________
@@ -1163,7 +1090,7 @@ SUBROUTINE SUCCESSIVE_SOL (METHOD,ERR,ITER)
 IMPLICIT NONE
 INTEGER                             :: ITER
 CHARACTER(*)                        :: METHOD
-CHARACTER*30                        :: FNAME
+CHARACTER*39                        :: FNAME
 REAL(8)                             :: ERR
 !------------------------------------------------------------------------------
 FNAME="/results/CONV-"//METHOD//".PLT"
